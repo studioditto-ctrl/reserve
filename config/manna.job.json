@@ -4,8 +4,8 @@
   "//adapter": "만나교회 사이트 셀렉터. inspect 로 채워야 합니다.",
   "adapter": "config/manna.profile.json",
 
-  "//schedule": "예약 대상 날짜: 매월 둘째주·넷째주. weekday 는 확인 후 고쳐야 합니다.",
-  "schedule": { "weekday": "sat", "weeksOfMonth": [2, 4], "monthsAhead": 2 },
+  "//schedule": "예약 대상: 매월 둘째주·넷째주 일요일 오전 11시~12시",
+  "schedule": { "weekday": "일", "weeksOfMonth": [2, 4], "monthsAhead": 2 },
 
   "target": {
     "dates": [],
@@ -17,8 +17,8 @@
   },
 
   "watch": {
-    "//openAt": "예약 오픈: 첫째주·셋째주 오후 9시. weekday 는 확인 후 고쳐야 합니다.",
-    "openAt": { "weekday": "sat", "weeksOfMonth": [1, 3], "time": "21:00" },
+    "//openAt": "예약 오픈: 첫째주·셋째주 토요일 오후 9시 (예약일 8일 전)",
+    "openAt": { "weekday": "토", "weeksOfMonth": [1, 3], "time": "21:00" },
     "//burst": "오픈 1분 전부터 10분 동안 1초 간격으로 확인합니다.",
     "burst": { "beforeSec": 60, "afterSec": 600, "intervalMs": 1000 },
     "//onlyAtOpen": "오픈 구간 외에는 확인하지 않고 대기만 합니다. false 로 두면 취소분도 노립니다.",
@@ -27,6 +27,9 @@
     "autoBook": true,
     "//stopAfterBooking": "한 곳만 잡으면 되므로 예약 성공 즉시 종료합니다.",
     "stopAfterBooking": true,
+    "//maxDates": "오픈 순간에는 가장 가까운 날짜 하나만 훑습니다 (먼 날짜는 아직 안 열림).",
+    "maxDates": 1,
+
     "intervalSec": 30,
     "maxConsecutiveErrors": 5
   }

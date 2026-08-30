@@ -110,7 +110,8 @@ export async function watch(deps: WatchDeps): Promise<WatchResult> {
 
       // 반복 일정이 있으면 대상 날짜를 매 회차 다시 계산합니다 (장기 감시 대비).
       if (job.schedule) {
-        const dates = upcomingDates(job.schedule);
+        const all = upcomingDates(job.schedule);
+        const dates = w.maxDates && w.maxDates > 0 ? all.slice(0, w.maxDates) : all;
         if (dates.join() !== job.target.dates.join()) {
           job.target.dates = dates;
           log.clearTick();

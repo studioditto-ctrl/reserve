@@ -86,3 +86,22 @@ test('다음 예약 오픈 시각을 구한다', () => {
   assert.equal(nextOpenAt(sched, new Date(2026, 8, 5, 21, 30))?.toISOString(),
                new Date(2026, 8, 19, 21, 0).toISOString(), '이미 지난 오픈은 건너뛴다');
 });
+
+test('오픈(첫째·셋째주 토) 시각마다 노릴 날짜(둘째·넷째주 일)가 8일 뒤로 맞는다', () => {
+  const open = { weekday: '토', weeksOfMonth: [1, 3], time: '21:00', monthsAhead: 2 };
+  const target = { weekday: '일', weeksOfMonth: [2, 4], monthsAhead: 2 };
+  const expected: [string, string][] = [
+    ['2026-09-05', '2026-09-13'],
+    ['2026-09-19', '2026-09-27'],
+    ['2026-10-03', '2026-10-11'],
+    ['2026-10-17', '2026-10-25'],
+  ];
+  let cursor = new Date(2026, 8, 1);
+  for (const [openDay, targetDay] of expected) {
+    const at = nextOpenAt(open, cursor)!;
+    assert.equal(toDateString(at), openDay);
+    assert.equal(at.getHours(), 21);
+    assert.equal(upcomingDates(target, at)[0], targetDay, `${openDay} 오픈 → ${targetDay}`);
+    cursor = new Date(at.getTime() + 60_000);
+  }
+});

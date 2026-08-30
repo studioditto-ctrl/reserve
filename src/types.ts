@@ -113,5 +113,10 @@ export interface JobConfig {
     };
     /** true 면 오픈 구간에만 확인하고, 그 밖의 시간에는 대기만 합니다. */
     onlyAtOpen?: boolean;
+    /**
+     * 한 회차에서 확인할 날짜 수 상한 (가까운 날짜부터).
+     * 오픈 순간에 아직 열리지 않은 먼 날짜까지 훑느라 시간을 쓰지 않도록 1 로 두면 좋습니다.
+     */
+    maxDates?: number;
   };
 }
