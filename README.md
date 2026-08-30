@@ -49,7 +49,17 @@ npx tsx src/cli.ts init myrestaurant
 
 ### 1. 프로필 채우기 — 셀렉터 찾는 법
 
-브라우저에서 대상 사이트를 열고 **F12 → 요소 검사**로 아래 5가지를 찾으면 끝입니다.
+가장 빠른 방법은 `inspect` 명령입니다. 페이지를 열어 셀렉터 후보와 **프로필 초안**을 뽑아 줍니다.
+
+```bash
+npx tsx src/cli.ts inspect https://example.com/login              # 로그인 폼 찾기
+npx tsx src/cli.ts inspect 'https://example.com/booking?date=2026-09-05' \
+    --profile config/myrestaurant.profile.json --wait 3          # 목록 찾기 (로그인 세션 사용)
+```
+
+목록이 늦게 그려지는 사이트는 `--wait <초>` 를 늘리고, 눈으로 확인하려면 `--headed` 를 붙이세요.
+
+`inspect` 가 못 잡는 경우에는 **F12 → 요소 검사**로 아래 5가지를 직접 찾으면 됩니다.
 
 | 항목 | 무엇을 찾나 | 예시 |
 |---|---|---|
@@ -124,6 +134,7 @@ npx tsx src/cli.ts watch $JOB --auto-book --confirm # 진짜로 확정까지
 | `check [job]` | 지금 빈자리를 한 번만 조회하고 슬롯 ID 를 출력 |
 | `watch [job]` | 빈자리가 날 때까지 감시. `--auto-book`, `--interval <초>`, `--confirm` |
 | `book <slotId> [job]` | `check` 에서 본 슬롯 ID 를 직접 지정해 예약 |
+| `inspect <url>` | 페이지를 훑어 셀렉터 후보와 프로필 초안을 출력. `--profile`, `--wait <초>` |
 | `init <name>` | 새 사이트용 프로필/작업 파일 생성 |
 
 공통 옵션: `--headed` (브라우저 창 표시 — 디버깅에 유용)
@@ -169,6 +180,7 @@ npm run mock        # 로컬 가짜 예약 사이트
 
 ```
 src/cli.ts             명령어 진입점
+src/inspect.ts         페이지에서 셀렉터 후보 추출
 src/watcher.ts         폴링 루프 (지터·백오프·조용한 시간대·중복 알림 방지)
 src/adapters/profile.ts  JSON 프로필로 동작하는 범용 어댑터
 src/adapters/registry.ts 프로필 로딩

@@ -9,6 +9,7 @@ import { loadAdapter } from './adapters/registry.js';
 import { log } from './logger.js';
 import { notify } from './notify/index.js';
 import { watch } from './watcher.js';
+import { formatReport, inspectPage } from './inspect.js';
 import type { JobConfig, SiteAdapter, Slot } from './types.js';
 
 const DEFAULT_JOB = 'config/mock.job.json';
@@ -164,6 +165,25 @@ program
         body: result.message,
       });
       if (!result.ok) process.exitCode = 1;
+    } finally {
+      await session.close();
+    }
+  });
+
+program
+  .command('inspect')
+  .description('페이지를 열어 프로필에 넣을 셀렉터 후보를 찾아줍니다.')
+  .argument('<url>', '조사할 페이지 URL (로그인 페이지 또는 예약 목록 페이지)')
+  .option('--profile <path>', '저장된 세션을 쓸 프로필 (로그인이 필요한 페이지일 때)')
+  .option('--headed', '브라우저 창을 띄웁니다')
+  .option('--wait <sec>', '페이지를 연 뒤 기다릴 시간(초). 목록이 늦게 그려지는 사이트용', '2')
+  .action(async (url: string, opts: { profile?: string; headed?: boolean; wait: string }) => {
+    const name = opts.profile ? loadAdapter(opts.profile).name : 'inspect';
+    const session = await openSession(name, { headless: opts.headed ? false : env.headless });
+    try {
+      await session.page.goto(url, { waitUntil: 'domcontentloaded' });
+      await session.page.waitForTimeout(Number(opts.wait) * 1000);
+      console.log(formatReport(await inspectPage(session.page)));
     } finally {
       await session.close();
     }
