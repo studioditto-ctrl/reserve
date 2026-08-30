@@ -1,0 +1,33 @@
+{
+  "name": "본관 3층 강의실 (311~318 중 한 곳)",
+
+  "//adapter": "만나교회 사이트 셀렉터. inspect 로 채워야 합니다.",
+  "adapter": "config/manna.profile.json",
+
+  "//schedule": "예약 대상 날짜: 매월 둘째주·넷째주. weekday 는 확인 후 고쳐야 합니다.",
+  "schedule": { "weekday": "sat", "weeksOfMonth": [2, 4], "monthsAhead": 2 },
+
+  "target": {
+    "dates": [],
+    "//rooms": "앞에서부터 확인해 먼저 비어 있는 곳 하나를 잡습니다.",
+    "rooms": ["311", "312", "313", "314", "315", "316", "317", "318"],
+    "//time": "오전 11시~12시 1시간. 목록에 표시되는 시작 시각이 11:00 인 것만 고릅니다.",
+    "timeFrom": "11:00",
+    "timeTo": "11:00"
+  },
+
+  "watch": {
+    "//openAt": "예약 오픈: 첫째주·셋째주 오후 9시. weekday 는 확인 후 고쳐야 합니다.",
+    "openAt": { "weekday": "sat", "weeksOfMonth": [1, 3], "time": "21:00" },
+    "//burst": "오픈 1분 전부터 10분 동안 1초 간격으로 확인합니다.",
+    "burst": { "beforeSec": 60, "afterSec": 600, "intervalMs": 1000 },
+    "//onlyAtOpen": "오픈 구간 외에는 확인하지 않고 대기만 합니다. false 로 두면 취소분도 노립니다.",
+    "onlyAtOpen": true,
+
+    "autoBook": true,
+    "//stopAfterBooking": "한 곳만 잡으면 되므로 예약 성공 즉시 종료합니다.",
+    "stopAfterBooking": true,
+    "intervalSec": 30,
+    "maxConsecutiveErrors": 5
+  }
+}

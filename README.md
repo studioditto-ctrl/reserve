@@ -38,6 +38,15 @@ npx tsx src/cli.ts watch config/mock.job.json --auto-book   # 감시 + 자동예
 
 빈자리가 20초 뒤에 열리는 상황을 보고 싶다면 `MOCK_OPEN_AFTER=20 npm run mock` 으로 띄우세요.
 
+가짜 사이트에는 두 가지 모드가 있습니다.
+
+| 모드 | URL | 시험하는 것 | 작업 파일 |
+|---|---|---|---|
+| 식당 예약 | `/booking?date=…&party=2` | 기본 흐름 | `config/mock.job.json` |
+| 장소 예약 | `/booking?date=…&room=311` | 호실 순회 + 반복 일정 | `config/mock-room.job.json` |
+
+`MOCK_FREE_ROOM=315 npm run mock` 으로 띄우면 315호만 비어 있어, 311호부터 순회하다 315호를 잡는 동작을 볼 수 있습니다.
+
 ---
 
 ## 실제 사이트에 붙이기
@@ -91,6 +100,50 @@ URL만으로 목록이 안 나오는 사이트(인원 수를 드롭다운으로 
 - **`final: true` — 되돌릴 수 없는 최종 확정 버튼.** dry-run 은 이 단계 **직전에** 멈춥니다. 결제/확정 버튼에는 반드시 붙이세요.
 
 ### 3. 작업 파일에 조건 적기
+
+#### 여러 곳 중 먼저 나는 한 곳만 (장소예약)
+
+`target.rooms` 에 후보를 적으면 **적힌 순서대로** 확인하며, 먼저 비어 있는 곳을 잡습니다.
+`stopAfterBooking: true` 와 함께 쓰면 한 곳만 예약하고 종료합니다.
+프로필의 `urlTemplate` 안 `{room}` 이 각 값으로 치환됩니다.
+
+```json
+"target": { "rooms": ["311", "312", "313", "314", "315", "316", "317", "318"] }
+```
+
+#### 매월 n째주 반복 일정
+
+날짜를 직접 적는 대신 `schedule` 을 쓰면 대상 날짜를 자동으로 계산합니다.
+장기 감시 중에도 회차마다 다시 계산하므로 달이 바뀌어도 알아서 따라갑니다.
+
+```json
+"schedule": { "weekday": "토", "weeksOfMonth": [2, 4], "monthsAhead": 2 }
+```
+
+여기서 **"둘째주 토요일"은 그 달의 두 번째 토요일**을 뜻합니다 (주차를 세는 방식이 아니라 해당 요일의 n번째 등장).
+`weekday` 는 `토` `sat` `Saturday` 를 모두 받습니다.
+
+#### 오픈런 — 예약이 열리는 시각에 맞춰 몰아치기
+
+선착순 예약처럼 **정해진 시각에 자리가 풀리는** 경우입니다.
+`openAt` 을 지정하면 그때까지 조용히 기다리다가, 오픈 직전부터 `burst` 간격으로 몰아서 확인합니다.
+
+```json
+"watch": {
+  "openAt": { "weekday": "토", "weeksOfMonth": [1, 3], "time": "21:00" },
+  "burst":  { "beforeSec": 60, "afterSec": 600, "intervalMs": 1000 },
+  "onlyAtOpen": true,
+  "autoBook": true,
+  "stopAfterBooking": true
+}
+```
+
+- 오픈 `beforeSec` 초 전에 정확히 깨어나 `intervalMs` 간격으로 전환하고, 오픈 후 `afterSec` 초까지 유지합니다
+- `onlyAtOpen: false` 로 두면 오픈 구간 밖에서도 `intervalSec` 간격으로 계속 확인합니다 (취소분 노리기)
+- `intervalMs` 하한은 500ms 입니다
+- **시계가 정확해야 합니다.** 오픈 시각 판단은 실행하는 컴퓨터의 시계 기준입니다
+
+#### 전체 예시
 
 ```json
 {

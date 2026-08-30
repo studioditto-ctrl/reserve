@@ -1,6 +1,7 @@
 import { config as loadDotenv } from 'dotenv';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { upcomingDates } from './schedule.js';
 import type { Credentials, JobConfig } from './types.js';
 
 loadDotenv({ quiet: true });
@@ -49,6 +50,15 @@ export function loadJob(path: string): JobConfig {
     throw new Error(`작업 파일을 읽지 못했습니다: ${full}\n${(e as Error).message}`);
   }
   if (!job.adapter) throw new Error(`${full}: "adapter" 항목이 필요합니다.`);
-  if (!job.target?.dates?.length) throw new Error(`${full}: "target.dates" 에 날짜가 최소 하나 필요합니다.`);
+  if (!job.target) throw new Error(`${full}: "target" 항목이 필요합니다.`);
+
+  // 반복 일정이 있으면 여기서 날짜를 계산합니다. 감시 중에는 워커가 다시 갱신합니다.
+  if (job.schedule) job.target.dates = upcomingDates(job.schedule);
+
+  if (!job.target.dates?.length) {
+    throw new Error(
+      `${full}: 대상 날짜가 없습니다. "target.dates" 에 날짜를 적거나 "schedule" 로 반복 일정을 지정하세요.`,
+    );
+  }
   return job;
 }

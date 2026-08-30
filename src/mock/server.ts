@@ -18,6 +18,9 @@ const SESSIONS = new Set<string>();
 const TIMES = ['17:30', '18:00', '19:00', '19:30', '20:30'];
 /** 열려 있는 시간대. 나머지는 매진으로 표시됩니다. */
 const OPEN_TIMES = new Set(['19:00', '20:30']);
+/** 장소예약 모드: 이 호실만 비어 있습니다 (나머지 호실 순회를 시험하기 위함). */
+const ROOM_TIMES = ['09:00', '10:00', '11:00', '13:00', '14:00'];
+const FREE_ROOM = process.env.MOCK_FREE_ROOM ?? '315';
 const booked = new Map<string, string>();
 
 const page = (title: string, body: string) => `<!doctype html><html lang="ko"><head>
@@ -85,6 +88,22 @@ const server = createServer(async (req, res) => {
   if (path === '/booking') {
     const date = url.searchParams.get('date') ?? '';
     const party = url.searchParams.get('party') ?? '2';
+    const room = url.searchParams.get('room');
+
+    // 장소예약 모드: 호실별 시간표. FREE_ROOM 만 비어 있습니다.
+    if (room) {
+      const open = Date.now() - START >= OPEN_AFTER_MS;
+      const rows = ROOM_TIMES.map((t) => {
+        const key = `${date} ${room} ${t}`;
+        const available = open && room === FREE_ROOM && !booked.has(key);
+        return available
+          ? `<a class="slot" href="/reserve?date=${date}&time=${t}&room=${room}">
+               <span class="slot-time">${t}</span> · <span class="slot-room">${room}호</span></a>`
+          : `<div class="slot"><span class="slot-time">${t}</span> · <span class="sold-out">예약불가</span></div>`;
+      }).join('');
+      return send(res, 200, page(`${room}호 예약`, `<div id="slot-list"><h2>${date} · ${room}호</h2>${rows}</div>`));
+    }
+
     const open = Date.now() - START >= OPEN_AFTER_MS;
     const rows = TIMES.map((t) => {
       const key = `${date} ${t}`;
@@ -101,9 +120,11 @@ const server = createServer(async (req, res) => {
   if (path === '/reserve') {
     const date = url.searchParams.get('date') ?? '';
     const time = url.searchParams.get('time') ?? '';
-    return send(res, 200, page('예약자 정보', `<h2>${date} ${time}</h2>
+    const room = url.searchParams.get('room') ?? '';
+    return send(res, 200, page('예약자 정보', `<h2>${date} ${time} ${room ? `${room}호` : ''}</h2>
       <form method="post" action="/confirm">
         <input type="hidden" name="date" value="${date}"><input type="hidden" name="time" value="${time}">
+        <input type="hidden" name="room" value="${room}">
         <p><input id="name" name="name" placeholder="예약자명"></p>
         <p><input id="phone" name="phone" placeholder="연락처"></p>
         <p><label><input id="agree" name="agree" type="checkbox"> 취소·환불 규정에 동의합니다</label></p>
@@ -113,7 +134,10 @@ const server = createServer(async (req, res) => {
 
   if (path === '/confirm' && req.method === 'POST') {
     const form = await readBody(req);
-    const key = `${form.get('date')} ${form.get('time')}`;
+    const room = form.get('room');
+    const key = room
+      ? `${form.get('date')} ${room} ${form.get('time')}`
+      : `${form.get('date')} ${form.get('time')}`;
     if (!form.get('name') || !form.get('agree')) {
       return send(res, 400, page('오류', '<p id="form-error">예약자명과 약관 동의가 필요합니다.</p>'));
     }

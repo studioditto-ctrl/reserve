@@ -1,0 +1,45 @@
+{
+  "//": "만나교회 장소예약 프로필 초안. TODO 부분을 inspect 결과로 채우세요.",
+  "//경로": "행정 → 장소예약 → 본관 → 3층 → 311~318호",
+  "name": "manna",
+  "baseUrl": "https://manna.or.kr",
+
+  "login": {
+    "//": "로그인 페이지에서 `inspect` 를 돌리면 아래 세 셀렉터가 나옵니다.",
+    "url": "https://manna.or.kr/TODO-로그인-경로",
+    "checkUrl": "https://manna.or.kr/TODO-마이페이지-경로",
+    "successSelector": "TODO-로그인해야-보이는-요소",
+    "usernameSelector": "TODO",
+    "passwordSelector": "TODO",
+    "submitSelector": "TODO",
+    "//manual": "2FA·캡차가 있으면 true 로 두고 `login --manual` 을 쓰세요.",
+    "manual": false
+  },
+
+  "search": {
+    "//urlTemplate": "호실·날짜를 바꿔가며 열리는 URL. {room} 에 311~318 이 들어갑니다.",
+    "urlTemplate": "https://manna.or.kr/TODO?date={date}&room={room}",
+    "//preSteps": "URL 만으로 안 되고 본관→3층→호실을 눌러야 한다면 여기에 클릭 단계를 적습니다.",
+    "preSteps": [],
+    "waitFor": "TODO-시간표-컨테이너",
+    "slotSelector": "TODO-시간대-한-칸",
+    "unavailableSelector": "TODO-예약불가-표시",
+    "fields": {
+      "time": "TODO-시각-표시",
+      "url": "self"
+    }
+  },
+
+  "book": {
+    "clickSlot": true,
+    "steps": [
+      { "action": "waitFor", "selector": "TODO-신청폼-첫-요소" },
+      { "action": "fill", "selector": "TODO-사용목적", "value": "TODO" },
+      { "action": "fill", "selector": "TODO-연락처", "valueFrom": "env:BOOKING_PHONE" },
+      { "action": "check", "selector": "TODO-동의", "optional": true },
+      { "action": "click", "selector": "TODO-신청완료-버튼", "final": true }
+    ],
+    "successSelector": "TODO-완료-확인-요소",
+    "confirmationSelector": "TODO-접수번호"
+  }
+}

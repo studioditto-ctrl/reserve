@@ -88,8 +88,8 @@ function toMinutes(hhmm: string): number | undefined {
   return Number(m[1]) * 60 + Number(m[2]);
 }
 
-function slotId(date: string, time: string | undefined, label: string): string {
-  return createHash('sha1').update(`${date}|${time ?? ''}|${label}`).digest('hex').slice(0, 12);
+function slotId(date: string, room: string | undefined, time: string | undefined, label: string): string {
+  return createHash('sha1').update(`${date}|${room ?? ''}|${time ?? ''}|${label}`).digest('hex').slice(0, 12);
 }
 
 async function textOf(scope: Locator, selector?: string): Promise<string> {
@@ -212,17 +212,27 @@ export class ProfileAdapter implements SiteAdapter {
   }
 
   async findSlots(page: Page, target: JobTarget): Promise<Slot[]> {
+    // rooms 가 있으면 적힌 순서대로 확인합니다. 먼저 발견된 자리가 먼저 예약됩니다.
+    const rooms: (string | undefined)[] = target.rooms?.length ? target.rooms : [undefined];
     const found: Slot[] = [];
     for (const date of target.dates) {
-      found.push(...(await this.findSlotsForDate(page, date, target)));
+      for (const room of rooms) {
+        found.push(...(await this.findSlotsForDate(page, date, room, target)));
+      }
     }
     return found;
   }
 
-  private async findSlotsForDate(page: Page, date: string, target: JobTarget): Promise<Slot[]> {
+  private async findSlotsForDate(
+    page: Page,
+    date: string,
+    room: string | undefined,
+    target: JobTarget,
+  ): Promise<Slot[]> {
     const { search } = this.profile;
     const url = fillTemplate(search.urlTemplate, {
       date,
+      room,
       party: target.party,
       time: target.timeFrom,
     });
@@ -262,9 +272,10 @@ export class ProfileAdapter implements SiteAdapter {
 
       const parsedTime = HHMM.exec(time)?.[0];
       const slot: Slot = {
-        id: slotId(date, parsedTime, label),
-        label: `${date} ${label}`,
+        id: slotId(date, room, parsedTime, label),
+        label: `${date} ${room ? `${room}호 ` : ''}${label}`,
         date,
+        ...(room ? { room } : {}),
         ...(parsedTime ? { time: parsedTime } : {}),
         ...(price ? { price } : {}),
         ...(href ? { url: new URL(href, page.url()).toString() } : {}),
@@ -283,7 +294,12 @@ export class ProfileAdapter implements SiteAdapter {
     // (감시 중에 목록 순서가 바뀌어도 엉뚱한 자리를 잡지 않게 하기 위함)
     const url =
       slot.searchUrl ??
-      fillTemplate(search.urlTemplate, { date: slot.date, party: slot.party, time: slot.time });
+      fillTemplate(search.urlTemplate, {
+        date: slot.date,
+        room: slot.room,
+        party: slot.party,
+        time: slot.time,
+      });
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     if (search.preSteps?.length) await runSteps(page, search.preSteps, { dryRun: false });
 
@@ -294,7 +310,7 @@ export class ProfileAdapter implements SiteAdapter {
       const node = nodes.nth(i);
       const label = await textOf(node, search.fields?.label);
       const time = search.fields?.time ? await textOf(node, search.fields.time) : label;
-      if (slotId(slot.date, HHMM.exec(time)?.[0], label) === slot.id) {
+      if (slotId(slot.date, slot.room, HHMM.exec(time)?.[0], label) === slot.id) {
         targetNode = node;
         break;
       }

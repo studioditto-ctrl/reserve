@@ -2,6 +2,7 @@ import type { Page } from 'playwright';
 import { log } from './logger.js';
 import { notify } from './notify/index.js';
 import { snapshot } from './browser.js';
+import { formatKST, nextOpenAt, upcomingDates } from './schedule.js';
 import type { JobConfig, SiteAdapter, Slot } from './types.js';
 
 /** 사이트에 과한 부하를 주지 않기 위한 하한선. */
@@ -9,6 +10,20 @@ const MIN_INTERVAL_SEC = 5;
 const DEFAULT_INTERVAL_SEC = 30;
 const DEFAULT_JITTER_SEC = 5;
 const DEFAULT_MAX_ERRORS = 5;
+/** 오픈런 구간에서 허용하는 최단 간격. 이보다 짧으면 사이트에 무리를 줍니다. */
+const MIN_BURST_MS = 500;
+const DEFAULT_BURST = { beforeSec: 30, afterSec: 300, intervalMs: 1000 };
+
+function fmtDuration(ms: number): string {
+  const s = Math.round(ms / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d) return `${d}일 ${h}시간`;
+  if (h) return `${h}시간 ${m}분`;
+  if (m) return `${m}분 ${s % 60}초`;
+  return `${s}초`;
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -52,6 +67,19 @@ export async function watch(deps: WatchDeps): Promise<WatchResult> {
   const maxErrors = w.maxConsecutiveErrors ?? DEFAULT_MAX_ERRORS;
   const deadline = w.until ? new Date(w.until).getTime() : undefined;
 
+  const openSched = w.openAt;
+  const beforeMs = (w.burst?.beforeSec ?? DEFAULT_BURST.beforeSec) * 1000;
+  const afterMs = (w.burst?.afterSec ?? DEFAULT_BURST.afterSec) * 1000;
+  const burstMs = Math.max(MIN_BURST_MS, w.burst?.intervalMs ?? DEFAULT_BURST.intervalMs);
+  // 오픈 시각이 지정되면 기본적으로 그 구간에만 확인합니다.
+  const waitForOpen = openSched ? w.onlyAtOpen !== false : false;
+  let nextOpen = openSched ? nextOpenAt(openSched) : undefined;
+  const announced = new Set<number>();
+
+  if (openSched && nextOpen) {
+    log.info(`다음 예약 오픈: ${formatKST(nextOpen)} (${fmtDuration(nextOpen.getTime() - Date.now())} 뒤)`);
+  }
+
   if (w.intervalSec !== undefined && w.intervalSec < MIN_INTERVAL_SEC) {
     log.warn(`intervalSec 이 너무 짧아 ${MIN_INTERVAL_SEC}초로 올렸습니다.`);
   }
@@ -78,11 +106,49 @@ export async function watch(deps: WatchDeps): Promise<WatchResult> {
       }
 
       round++;
+      let inBurst = false;
+
+      // 반복 일정이 있으면 대상 날짜를 매 회차 다시 계산합니다 (장기 감시 대비).
+      if (job.schedule) {
+        const dates = upcomingDates(job.schedule);
+        if (dates.join() !== job.target.dates.join()) {
+          job.target.dates = dates;
+          log.clearTick();
+          log.info(`대상 날짜 갱신: ${dates.join(', ') || '(해당 없음)'}`);
+        }
+      }
 
       if (inQuietHours(w.quietHours)) {
         log.progress(round, `조용한 시간대(${w.quietHours?.join('~')}) — 대기 중`);
         await sleep(60_000);
         continue;
+      }
+
+      // ── 오픈런: 예약이 열리는 시각까지 기다렸다가 그 전후로 몰아서 확인 ──
+      if (openSched) {
+        const now = Date.now();
+        if (!nextOpen || now > nextOpen.getTime() + afterMs) nextOpen = nextOpenAt(openSched, new Date());
+        if (!nextOpen) {
+          log.clearTick();
+          log.info('남은 예약 오픈 일정이 없어 종료합니다.');
+          return { reason: 'deadline' };
+        }
+        const burstStart = nextOpen.getTime() - beforeMs;
+        const burstEnd = nextOpen.getTime() + afterMs;
+
+        if (now < burstStart && waitForOpen) {
+          log.progress(round, `오픈 대기 중 — ${formatKST(nextOpen)} (${fmtDuration(burstStart - now)} 남음)`);
+          // 한 번에 오래 자지 않고 쪼개서 기다립니다 (중단 신호에 바로 반응하도록).
+          await sleep(Math.min(burstStart - now, 60_000));
+          continue;
+        }
+
+        inBurst = now >= burstStart && now <= burstEnd;
+        if (inBurst && !announced.has(nextOpen.getTime())) {
+          announced.add(nextOpen.getTime());
+          log.clearTick();
+          log.info(`오픈 임박 — ${formatKST(nextOpen)} · ${burstMs}ms 간격으로 확인합니다`);
+        }
       }
 
       try {
@@ -143,12 +209,14 @@ export async function watch(deps: WatchDeps): Promise<WatchResult> {
           return { reason: 'errors' };
         }
         // 실패가 이어지면 간격을 늘려 사이트를 두드리지 않습니다.
-        await sleep(interval * 1000 * consecutiveErrors);
+        await sleep((inBurst ? burstMs : interval * 1000) * consecutiveErrors);
         continue;
       }
 
-      const waitMs = (interval + (Math.random() * 2 - 1) * jitter) * 1000;
-      await sleep(Math.max(MIN_INTERVAL_SEC * 1000, waitMs));
+      const waitMs = inBurst
+        ? burstMs
+        : Math.max(MIN_INTERVAL_SEC * 1000, (interval + (Math.random() * 2 - 1) * jitter) * 1000);
+      await sleep(waitMs);
     }
     return { reason: 'interrupted' };
   } finally {

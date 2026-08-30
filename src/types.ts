@@ -1,4 +1,5 @@
 import type { Page } from 'playwright';
+import type { OpenSchedule, RecurringSchedule } from './schedule.js';
 
 /** 예약 가능한 자리 하나. */
 export interface Slot {
@@ -9,6 +10,8 @@ export interface Slot {
   date: string;
   time?: string;
   party?: number;
+  /** 장소 예약처럼 대상이 여러 개일 때의 식별자. 예: "311" */
+  room?: string;
   price?: string;
   url?: string;
   /**
@@ -20,8 +23,13 @@ export interface Slot {
 
 /** 사용자가 잡고 싶은 조건. */
 export interface JobTarget {
-  /** 노릴 날짜들. YYYY-MM-DD */
+  /** 노릴 날짜들. YYYY-MM-DD. schedule 이 있으면 매 회차마다 다시 계산됩니다. */
   dates: string[];
+  /**
+   * 후보 대상들. 앞에서부터 순서대로 확인하며, 먼저 비어 있는 곳을 잡습니다.
+   * 프로필의 urlTemplate 안 {room} 으로 치환됩니다. 예: ["311", "312", …]
+   */
+  rooms?: string[];
   /** 이 시각 이후 (HH:mm) */
   timeFrom?: string;
   /** 이 시각 이전 (HH:mm) */
@@ -69,6 +77,11 @@ export interface JobConfig {
   /** 사용할 어댑터: 프로필 JSON 경로, 또는 내장 어댑터 이름("mock"). */
   adapter: string;
   target: JobTarget;
+  /**
+   * "매월 둘째주·넷째주 토요일" 같은 반복 일정.
+   * 지정하면 target.dates 를 매 회차마다 이 일정으로 다시 계산합니다.
+   */
+  schedule?: RecurringSchedule;
   watch?: {
     /** 폴링 간격(초). 최소 5초. */
     intervalSec?: number;
@@ -84,5 +97,21 @@ export interface JobConfig {
     until?: string;
     /** 연속 실패 허용 횟수. 초과하면 종료. */
     maxConsecutiveErrors?: number;
+    /**
+     * 예약이 열리는 시각 (오픈런). 지정하면 그때까지 조용히 기다리다가
+     * 오픈 직전부터 burst 간격으로 몰아서 확인합니다.
+     */
+    openAt?: OpenSchedule;
+    /** 오픈 시각 전후로 빠르게 확인하는 구간. */
+    burst?: {
+      /** 오픈 몇 초 전부터 몰아치기 시작할지. 기본 30 */
+      beforeSec?: number;
+      /** 오픈 후 몇 초 동안 유지할지. 기본 300 */
+      afterSec?: number;
+      /** 몰아치는 동안의 간격(밀리초). 최소 500. 기본 1000 */
+      intervalMs?: number;
+    };
+    /** true 면 오픈 구간에만 확인하고, 그 밖의 시간에는 대기만 합니다. */
+    onlyAtOpen?: boolean;
   };
 }
