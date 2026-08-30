@@ -1,0 +1,29 @@
+{
+  "name": "reserve",
+  "version": "0.1.0",
+  "description": "실시간 예약 감시 및 자동 예약 CLI",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "reserve": "./src/cli.ts"
+  },
+  "scripts": {
+    "reserve": "tsx src/cli.ts",
+    "login": "tsx src/cli.ts login",
+    "check": "tsx src/cli.ts check",
+    "watch": "tsx src/cli.ts watch",
+    "mock": "tsx src/mock/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "commander": "^14.0.2",
+    "dotenv": "^17.2.3",
+    "playwright": "^1.57.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.7",
+    "typescript": "^5.9.3"
+  }
+}

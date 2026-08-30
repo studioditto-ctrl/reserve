@@ -1,0 +1,49 @@
+{
+  "//": "실제 사이트용 템플릿입니다. 셀렉터를 브라우저 개발자도구에서 확인해 채우세요 (README 참고).",
+  "name": "mysite",
+  "baseUrl": "https://example.com",
+
+  "login": {
+    "url": "https://example.com/login",
+    "//checkUrl": "로그인 여부를 확인할 페이지. 보통 마이페이지.",
+    "checkUrl": "https://example.com/mypage",
+    "//successSelector": "로그인된 상태에서만 보이는 요소. 로그아웃 버튼이나 닉네임이 무난합니다.",
+    "successSelector": ".gnb__logout",
+    "usernameSelector": "#loginId",
+    "passwordSelector": "#loginPw",
+    "submitSelector": "button[type=submit]",
+    "//manual": "2FA·캡차가 있으면 true 로 두고 `login --manual` 로 직접 로그인하세요.",
+    "manual": false
+  },
+
+  "search": {
+    "//urlTemplate": "{date} {party} {time} 이 치환됩니다.",
+    "urlTemplate": "https://example.com/booking?date={date}&people={party}",
+    "//preSteps": "URL 만으로 목록이 안 나오는 사이트라면 여기에 조작 단계를 적습니다.",
+    "preSteps": [],
+    "waitFor": ".timeslot-list",
+    "slotSelector": ".timeslot",
+    "unavailableSelector": ".is-soldout",
+    "fields": {
+      "//": "슬롯 요소 안에서의 상대 셀렉터. label 을 비우면 요소 전체 텍스트를 씁니다.",
+      "time": ".timeslot__time",
+      "price": ".timeslot__price",
+      "url": "self"
+    }
+  },
+
+  "book": {
+    "clickSlot": true,
+    "//steps": "final:true 인 단계가 되돌릴 수 없는 최종 확정입니다. dry-run 은 그 직전에 멈춥니다.",
+    "steps": [
+      { "action": "waitFor", "selector": "#booker-name" },
+      { "action": "fill", "selector": "#booker-name", "valueFrom": "env:BOOKING_NAME" },
+      { "action": "fill", "selector": "#booker-phone", "valueFrom": "env:BOOKING_PHONE" },
+      { "action": "check", "selector": "#agree-terms" },
+      { "action": "check", "selector": "#agree-marketing", "optional": true },
+      { "action": "click", "selector": "#submit-reservation", "final": true }
+    ],
+    "successSelector": ".reservation-complete",
+    "confirmationSelector": ".reservation-number"
+  }
+}

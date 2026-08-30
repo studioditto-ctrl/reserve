@@ -1,0 +1,23 @@
+{
+  "name": "내 예약 작업",
+  "//adapter": "프로필 JSON 경로를 적습니다.",
+  "adapter": "config/example.profile.json",
+  "target": {
+    "dates": ["2026-09-05", "2026-09-06"],
+    "party": 2,
+    "timeFrom": "18:00",
+    "timeTo": "20:30",
+    "//keywords": "라벨에 모두 포함되어야 하는 단어들",
+    "keywords": [],
+    "//exclude": "라벨에 하나라도 있으면 건너뜁니다",
+    "exclude": ["바 좌석"]
+  },
+  "watch": {
+    "intervalSec": 30,
+    "jitterSec": 5,
+    "autoBook": false,
+    "stopAfterBooking": true,
+    "quietHours": ["01:00", "07:00"],
+    "maxConsecutiveErrors": 5
+  }
+}

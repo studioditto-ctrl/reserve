@@ -1,0 +1,88 @@
+import type { Page } from 'playwright';
+
+/** 예약 가능한 자리 하나. */
+export interface Slot {
+  /** 중복 알림을 막기 위한 안정적인 식별자. */
+  id: string;
+  /** 사람이 읽는 표기. 예: "2026-09-05 19:00 · 2인 · 창가석" */
+  label: string;
+  date: string;
+  time?: string;
+  party?: number;
+  price?: string;
+  url?: string;
+  /**
+   * 이 슬롯을 발견한 목록 페이지의 URL.
+   * 예약할 때 같은 페이지를 다시 열어 같은 자리를 정확히 찾아가기 위해 씁니다.
+   */
+  searchUrl?: string;
+}
+
+/** 사용자가 잡고 싶은 조건. */
+export interface JobTarget {
+  /** 노릴 날짜들. YYYY-MM-DD */
+  dates: string[];
+  /** 이 시각 이후 (HH:mm) */
+  timeFrom?: string;
+  /** 이 시각 이전 (HH:mm) */
+  timeTo?: string;
+  party?: number;
+  /** 라벨에 반드시 포함되어야 하는 문자열들 */
+  keywords?: string[];
+  /** 라벨에 하나라도 포함되면 제외 */
+  exclude?: string[];
+}
+
+export interface Credentials {
+  username: string;
+  password: string;
+}
+
+export interface BookingResult {
+  ok: boolean;
+  /** dry-run 이라 최종 확정 직전에 멈춘 경우 true */
+  stoppedBeforeConfirm?: boolean;
+  confirmationCode?: string;
+  message: string;
+  screenshot?: string;
+}
+
+/**
+ * 사이트 하나를 다루는 방법. 새 사이트를 붙이려면
+ * 이 인터페이스만 구현하면 나머지(감시 루프·알림·CLI)는 그대로 재사용됩니다.
+ */
+export interface SiteAdapter {
+  name: string;
+  /** 저장된 세션이 아직 살아있는지 확인. */
+  isLoggedIn(page: Page): Promise<boolean>;
+  /** 로그인 수행. manual 모드면 사용자가 직접 입력할 때까지 기다립니다. */
+  login(page: Page, creds: Credentials, opts: { manual: boolean }): Promise<void>;
+  /** 조건에 맞는 빈자리 목록을 반환. 없으면 빈 배열. */
+  findSlots(page: Page, target: JobTarget): Promise<Slot[]>;
+  /** 슬롯 하나를 실제로 예약. dryRun 이면 최종 확정 직전에 멈춥니다. */
+  book(page: Page, slot: Slot, opts: { dryRun: boolean }): Promise<BookingResult>;
+}
+
+/** config/*.job.json 의 형태. */
+export interface JobConfig {
+  name: string;
+  /** 사용할 어댑터: 프로필 JSON 경로, 또는 내장 어댑터 이름("mock"). */
+  adapter: string;
+  target: JobTarget;
+  watch?: {
+    /** 폴링 간격(초). 최소 5초. */
+    intervalSec?: number;
+    /** 매 요청마다 ±jitterSec 만큼 무작위로 흔들어 패턴을 없앱니다. */
+    jitterSec?: number;
+    /** 빈자리를 찾으면 자동으로 예약까지 시도할지. */
+    autoBook?: boolean;
+    /** 예약 성공(또는 dry-run 도달) 후 워커를 종료할지. */
+    stopAfterBooking?: boolean;
+    /** 이 시각 범위에는 폴링을 쉽니다. 예: ["01:00", "07:00"] */
+    quietHours?: [string, string];
+    /** 이 시각이 지나면 워커를 종료합니다. ISO 8601. */
+    until?: string;
+    /** 연속 실패 허용 횟수. 초과하면 종료. */
+    maxConsecutiveErrors?: number;
+  };
+}
