@@ -68,6 +68,15 @@ npx tsx src/cli.ts inspect 'https://example.com/booking?date=2026-09-05' \
 
 목록이 늦게 그려지는 사이트는 `--wait <초>` 를 늘리고, 눈으로 확인하려면 `--headed` 를 붙이세요.
 
+**아직 셀렉터를 몰라 로그인조차 못 하는 상태라면** `--pause` 를 쓰세요.
+창을 띄운 채 기다리므로 직접 로그인하고 원하는 화면까지 이동한 뒤 Enter 를 누르면,
+**그 시점의 화면**을 조사하고 세션까지 저장합니다. 셀렉터를 몰라 로그인을 못 하고,
+로그인을 못 해 셀렉터를 못 찾는 순환을 여기서 끊습니다.
+
+```bash
+npx tsx src/cli.ts inspect https://example.com/booking --profile config/mysite.profile.json --pause
+```
+
 `inspect` 가 못 잡는 경우에는 **F12 → 요소 검사**로 아래 5가지를 직접 찾으면 됩니다.
 
 | 항목 | 무엇을 찾나 | 예시 |
@@ -218,7 +227,7 @@ npx tsx src/cli.ts watch $JOB --auto-book --confirm # 진짜로 확정까지
 | `check [job]` | 지금 빈자리를 한 번만 조회하고 슬롯 ID 를 출력 |
 | `watch [job]` | 빈자리가 날 때까지 감시. `--auto-book`, `--interval <초>`, `--confirm` |
 | `book <slotId> [job]` | `check` 에서 본 슬롯 ID 를 직접 지정해 예약 |
-| `inspect <url>` | 페이지를 훑어 셀렉터 후보와 프로필 초안을 출력. `--profile`, `--wait <초>` |
+| `inspect <url>` | 페이지를 훑어 셀렉터 후보와 프로필 초안을 출력. `--profile`, `--wait <초>`, `--pause` |
 | `init <name>` | 새 사이트용 프로필/작업 파일 생성 |
 
 공통 옵션: `--headed` (브라우저 창 표시 — 디버깅에 유용)

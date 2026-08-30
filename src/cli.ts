@@ -54,6 +54,17 @@ function printSlots(slots: Slot[]): void {
   }
 }
 
+/** 사용자가 Enter 를 누를 때까지 기다립니다. */
+function waitForEnter(): Promise<void> {
+  return new Promise((resolve) => {
+    process.stdin.resume();
+    process.stdin.once('data', () => {
+      process.stdin.pause();
+      resolve();
+    });
+  });
+}
+
 const program = new Command();
 program
   .name('reserve')
@@ -177,12 +188,29 @@ program
   .option('--profile <path>', '저장된 세션을 쓸 프로필 (로그인이 필요한 페이지일 때)')
   .option('--headed', '브라우저 창을 띄웁니다')
   .option('--wait <sec>', '페이지를 연 뒤 기다릴 시간(초). 목록이 늦게 그려지는 사이트용', '2')
-  .action(async (url: string, opts: { profile?: string; headed?: boolean; wait: string }) => {
+  .option(
+    '--pause',
+    '창을 띄운 뒤 Enter 를 누를 때까지 기다립니다. 직접 로그인하고 원하는 화면까지 이동한 다음 조사할 때 쓰세요 (세션도 저장됩니다).',
+  )
+  .action(async (url: string, opts: { profile?: string; headed?: boolean; wait: string; pause?: boolean }) => {
     const name = opts.profile ? loadAdapter(opts.profile).name : 'inspect';
-    const session = await openSession(name, { headless: opts.headed ? false : env.headless });
+    const headless = opts.pause ? false : opts.headed ? false : env.headless;
+    const session = await openSession(name, { headless });
     try {
       await session.page.goto(url, { waitUntil: 'domcontentloaded' });
-      await session.page.waitForTimeout(Number(opts.wait) * 1000);
+
+      if (opts.pause) {
+        console.log(
+          '\n브라우저 창에서 직접 로그인하고, 조사할 화면까지 이동하세요.\n' +
+            '준비되면 이 터미널에서 Enter 를 누르세요. (그 시점의 화면을 조사합니다)\n',
+        );
+        await waitForEnter();
+        await session.save();
+        log.ok(`세션 저장: ${sessionPath(name)}`);
+      } else {
+        await session.page.waitForTimeout(Number(opts.wait) * 1000);
+      }
+
       console.log(formatReport(await inspectPage(session.page)));
     } finally {
       await session.close();
