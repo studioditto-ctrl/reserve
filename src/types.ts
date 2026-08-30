@@ -27,9 +27,13 @@ export interface JobTarget {
   dates: string[];
   /**
    * 후보 대상들. 앞에서부터 순서대로 확인하며, 먼저 비어 있는 곳을 잡습니다.
-   * 프로필의 urlTemplate 안 {room} 으로 치환됩니다. 예: ["311", "312", …]
+   * 프로필의 urlTemplate 안 {room} 으로 치환됩니다.
+   *
+   * 사이트가 내부 코드를 쓰는 경우엔 코드와 표시 이름을 함께 적을 수 있습니다.
+   *   ["311", "312"]                              코드가 곧 이름일 때
+   *   [{ "id": "26", "label": "311호" }, …]        코드와 이름이 다를 때
    */
-  rooms?: string[];
+  rooms?: (string | RoomRef)[];
   /** 이 시각 이후 (HH:mm) */
   timeFrom?: string;
   /** 이 시각 이전 (HH:mm) */
@@ -39,6 +43,13 @@ export interface JobTarget {
   keywords?: string[];
   /** 라벨에 하나라도 포함되면 제외 */
   exclude?: string[];
+}
+
+export interface RoomRef {
+  /** urlTemplate 의 {room} 에 들어갈 값. */
+  id: string;
+  /** 로그와 알림에 표시할 이름. 없으면 id 를 씁니다. */
+  label?: string;
 }
 
 export interface Credentials {

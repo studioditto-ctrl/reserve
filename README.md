@@ -78,6 +78,16 @@ npx tsx src/cli.ts inspect 'https://example.com/booking?date=2026-09-05' \
 | `search.slotSelector` | 시간대 하나에 해당하는 요소 (여러 개가 잡혀야 정상) | `.timeslot` |
 | `search.unavailableSelector` | 그 요소 안의 "매진/마감" 표시 | `.is-soldout` |
 
+공지 팝업이 떠서 클릭이 막히는 사이트라면 프로필에 닫기 버튼을 적어 둡니다.
+**보일 때만** 누르고 없으면 조용히 넘어가므로, 후보를 여러 개 적어도 안전합니다.
+
+```json
+"dismiss": ["#popup_close", ".popup-close", "button.close"],
+"closePopupWindows": true
+```
+
+`closePopupWindows` 는 `window.open` 으로 뜨는 **별도 창**을 자동으로 닫습니다.
+
 콘솔에서 `document.querySelectorAll('.timeslot').length` 로 개수를 세어 보면 셀렉터가 맞는지 바로 확인됩니다.
 
 `{date}` `{party}` `{time}` 은 작업 파일의 값으로 치환됩니다.
@@ -109,6 +119,26 @@ URL만으로 목록이 안 나오는 사이트(인원 수를 드롭다운으로 
 
 ```json
 "target": { "rooms": ["311", "312", "313", "314", "315", "316", "317", "318"] }
+```
+
+사이트가 호실명 대신 내부 코드를 쓰면(`?location=26` 같은) 코드와 표시 이름을 함께 적습니다.
+URL 에는 `id` 가, 로그와 알림에는 `label` 이 쓰입니다.
+
+```json
+"target": { "rooms": [
+  { "id": "26", "label": "311호" },
+  { "id": "27", "label": "312호" }
+] }
+```
+
+내부 코드는 **`inspect` 가 드롭다운에서 뽑아 줍니다.**
+
+```
+── 드롭다운 (장소·호실 코드 확인용) ──────────
+  #location  name="location"  (8개)
+     20       311호
+     21       312호
+     …
 ```
 
 #### 매월 n째주 반복 일정

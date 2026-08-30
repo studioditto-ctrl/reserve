@@ -1,6 +1,10 @@
 {
   "name": "mock-room",
   "baseUrl": "http://localhost:8787",
+  "dismiss": [
+    "#notice-close"
+  ],
+  "closePopupWindows": true,
   "login": {
     "url": "http://localhost:8787/login",
     "checkUrl": "http://localhost:8787/my",
@@ -14,16 +18,37 @@
     "waitFor": "#slot-list",
     "slotSelector": ".slot",
     "unavailableSelector": ".sold-out",
-    "fields": { "time": ".slot-time", "url": "self" }
+    "fields": {
+      "time": ".slot-time",
+      "url": "self"
+    }
   },
   "book": {
     "clickSlot": true,
     "steps": [
-      { "action": "waitFor", "selector": "#name" },
-      { "action": "fill", "selector": "#name", "valueFrom": "env:BOOKING_NAME" },
-      { "action": "fill", "selector": "#phone", "valueFrom": "env:BOOKING_PHONE" },
-      { "action": "check", "selector": "#agree" },
-      { "action": "click", "selector": "#confirm-btn", "final": true }
+      {
+        "action": "waitFor",
+        "selector": "#name"
+      },
+      {
+        "action": "fill",
+        "selector": "#name",
+        "valueFrom": "env:BOOKING_NAME"
+      },
+      {
+        "action": "fill",
+        "selector": "#phone",
+        "valueFrom": "env:BOOKING_PHONE"
+      },
+      {
+        "action": "check",
+        "selector": "#agree"
+      },
+      {
+        "action": "click",
+        "selector": "#confirm-btn",
+        "final": true
+      }
     ],
     "successSelector": ".done",
     "confirmationSelector": ".code"

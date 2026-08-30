@@ -18,12 +18,20 @@ export interface ListGuess {
   linkSelector?: string;
 }
 
+/** 드롭다운 하나. 장소·호실 목록이 여기 들어 있는 경우가 많습니다. */
+export interface SelectGuess {
+  selector: string;
+  name?: string;
+  options: { value: string; label: string }[];
+}
+
 export interface InspectReport {
   url: string;
   title: string;
   login: LoginGuess;
   lists: ListGuess[];
   loginStateCandidates: string[];
+  selects: SelectGuess[];
 }
 
 /**
@@ -85,6 +93,17 @@ export async function inspectPage(page: Page): Promise<InspectReport> {
       .filter((el) => el.children.length === 0 && LOGGED_IN.test(text(el)))
       .slice(0, 6)
       .map((el) => `${sel(el)}   ← "${text(el).slice(0, 30)}"`);
+
+    // ── 드롭다운 (장소/호실 코드가 들어 있는 경우가 많습니다) ──
+    const selects = Array.from(document.querySelectorAll('select'))
+      .map((el) => ({
+        selector: sel(el),
+        ...(el.getAttribute('name') ? { name: el.getAttribute('name')! } : {}),
+        options: Array.from(el.options)
+          .slice(0, 40)
+          .map((o) => ({ value: o.value, label: text(o) })),
+      }))
+      .filter((s) => s.options.length > 1);
 
     // ── 반복되는 목록 블록 ─────────────────────────────────
     const groups = new Map<string, Element[]>();
@@ -149,6 +168,7 @@ export async function inspectPage(page: Page): Promise<InspectReport> {
       login,
       lists: deduped.slice(0, 6),
       loginStateCandidates,
+      selects,
     };
   });
 }
@@ -170,6 +190,14 @@ export function formatReport(r: InspectReport): string {
   if (r.loginStateCandidates.length) {
     out.push('\n── successSelector 후보 (로그인 상태에서만 보이는 요소) ──');
     for (const c of r.loginStateCandidates) out.push(`  ${c}`);
+  }
+
+  if (r.selects.length) {
+    out.push('\n── 드롭다운 (장소·호실 코드 확인용) ──────────');
+    for (const s of r.selects) {
+      out.push(`  ${s.selector}${s.name ? `  name="${s.name}"` : ''}  (${s.options.length}개)`);
+      for (const o of s.options) out.push(`     ${o.value.padEnd(8)} ${o.label}`);
+    }
   }
 
   out.push('\n── 반복되는 목록 블록 (slotSelector 후보) ────');

@@ -5,7 +5,7 @@ import type { Locator, Page } from 'playwright';
 import { resolveValue } from '../config.js';
 import { log } from '../logger.js';
 import { snapshot } from '../browser.js';
-import type { BookingResult, Credentials, JobTarget, SiteAdapter, Slot } from '../types.js';
+import type { BookingResult, Credentials, JobTarget, RoomRef, SiteAdapter, Slot } from '../types.js';
 
 /** 예약 흐름의 한 단계. 사이트마다 다른 클릭 순서를 JSON 으로 기술합니다. */
 export interface Step {
@@ -27,6 +27,13 @@ export interface Step {
 export interface SiteProfile {
   name: string;
   baseUrl?: string;
+  /**
+   * 페이지를 열 때마다 닫아야 하는 공지/알림 팝업의 닫기 버튼들.
+   * 화면에 보일 때만 누르고, 없으면 조용히 넘어갑니다.
+   */
+  dismiss?: string[];
+  /** window.open 으로 뜨는 별도 팝업 창을 자동으로 닫습니다. */
+  closePopupWindows?: boolean;
   login: {
     url: string;
     /** 로그인 상태를 확인할 페이지. 없으면 login.url 을 씁니다. */
@@ -167,13 +174,39 @@ function must(selector: string | undefined): string {
 export class ProfileAdapter implements SiteAdapter {
   constructor(private readonly profile: SiteProfile) {}
 
+  private popupHookInstalled = false;
+
   get name(): string {
     return this.profile.name;
   }
 
+  /** 새 창으로 뜨는 팝업을 자동으로 닫도록 한 번만 걸어 둡니다. */
+  private hookPopups(page: Page): void {
+    if (this.popupHookInstalled || !this.profile.closePopupWindows) return;
+    this.popupHookInstalled = true;
+    page.context().on('page', (opened) => {
+      if (opened !== page) {
+        log.info('팝업 창을 닫았습니다.');
+        opened.close().catch(() => {});
+      }
+    });
+  }
+
+  /** 화면을 가리는 공지 팝업을 닫습니다. 없으면 아무 일도 하지 않습니다. */
+  private async dismissPopups(page: Page): Promise<void> {
+    for (const selector of this.profile.dismiss ?? []) {
+      const el = page.locator(selector).first();
+      if (await el.isVisible({ timeout: 1_000 }).catch(() => false)) {
+        await el.click({ timeout: 3_000 }).catch(() => {});
+      }
+    }
+  }
+
   async isLoggedIn(page: Page): Promise<boolean> {
     const { login } = this.profile;
+    this.hookPopups(page);
     await page.goto(login.checkUrl ?? login.url, { waitUntil: 'domcontentloaded' });
+    await this.dismissPopups(page);
     return page
       .locator(login.successSelector)
       .first()
@@ -184,7 +217,9 @@ export class ProfileAdapter implements SiteAdapter {
 
   async login(page: Page, creds: Credentials, opts: { manual: boolean }): Promise<void> {
     const { login } = this.profile;
+    this.hookPopups(page);
     await page.goto(login.url, { waitUntil: 'domcontentloaded' });
+    await this.dismissPopups(page);
 
     const manual = opts.manual || login.manual;
     if (manual) {
@@ -212,8 +247,11 @@ export class ProfileAdapter implements SiteAdapter {
   }
 
   async findSlots(page: Page, target: JobTarget): Promise<Slot[]> {
+    this.hookPopups(page);
     // rooms 가 있으면 적힌 순서대로 확인합니다. 먼저 발견된 자리가 먼저 예약됩니다.
-    const rooms: (string | undefined)[] = target.rooms?.length ? target.rooms : [undefined];
+    const rooms: (RoomRef | undefined)[] = target.rooms?.length
+      ? target.rooms.map((r) => (typeof r === 'string' ? { id: r } : r))
+      : [undefined];
     const found: Slot[] = [];
     for (const date of target.dates) {
       for (const room of rooms) {
@@ -226,17 +264,18 @@ export class ProfileAdapter implements SiteAdapter {
   private async findSlotsForDate(
     page: Page,
     date: string,
-    room: string | undefined,
+    room: RoomRef | undefined,
     target: JobTarget,
   ): Promise<Slot[]> {
     const { search } = this.profile;
     const url = fillTemplate(search.urlTemplate, {
       date,
-      room,
+      room: room?.id,
       party: target.party,
       time: target.timeFrom,
     });
     await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await this.dismissPopups(page);
     if (search.preSteps?.length) await runSteps(page, search.preSteps, { dryRun: false });
     if (search.waitFor) {
       const appeared = await page
@@ -272,10 +311,10 @@ export class ProfileAdapter implements SiteAdapter {
 
       const parsedTime = HHMM.exec(time)?.[0];
       const slot: Slot = {
-        id: slotId(date, room, parsedTime, label),
-        label: `${date} ${room ? `${room}호 ` : ''}${label}`,
+        id: slotId(date, room?.id, parsedTime, label),
+        label: `${date} ${room ? `${room.label ?? room.id} ` : ''}${label}`,
         date,
-        ...(room ? { room } : {}),
+        ...(room ? { room: room.id } : {}),
         ...(parsedTime ? { time: parsedTime } : {}),
         ...(price ? { price } : {}),
         ...(href ? { url: new URL(href, page.url()).toString() } : {}),
@@ -300,7 +339,9 @@ export class ProfileAdapter implements SiteAdapter {
         party: slot.party,
         time: slot.time,
       });
+    this.hookPopups(page);
     await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await this.dismissPopups(page);
     if (search.preSteps?.length) await runSteps(page, search.preSteps, { dryRun: false });
 
     let targetNode: Locator | undefined;

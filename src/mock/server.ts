@@ -21,13 +21,16 @@ const OPEN_TIMES = new Set(['19:00', '20:30']);
 /** 장소예약 모드: 이 호실만 비어 있습니다 (나머지 호실 순회를 시험하기 위함). */
 const ROOM_TIMES = ['09:00', '10:00', '11:00', '13:00', '14:00'];
 const FREE_ROOM = process.env.MOCK_FREE_ROOM ?? '315';
+const ROOMS = ['311', '312', '313', '314', '315', '316', '317', '318'];
 const booked = new Map<string, string>();
 
 const page = (title: string, body: string) => `<!doctype html><html lang="ko"><head>
 <meta charset="utf-8"><title>${title}</title>
 <style>body{font:16px/1.6 system-ui;margin:40px auto;max-width:640px}
 .slot{display:block;padding:10px 14px;margin:6px 0;border:1px solid #ccc;border-radius:8px;text-decoration:none;color:#111}
-.sold-out{color:#c00;font-size:13px}.done{color:#0a0;font-weight:700}</style>
+.sold-out{color:#c00;font-size:13px}.done{color:#0a0;font-weight:700}
+#notice-popup{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center}
+#notice-popup>div{background:#fff;padding:24px 32px;border-radius:10px}</style>
 </head><body><h1>맛집예약 (MOCK)</h1>${body}</body></html>`;
 
 function cookies(req: IncomingMessage): Record<string, string> {
@@ -101,7 +104,16 @@ const server = createServer(async (req, res) => {
                <span class="slot-time">${t}</span> · <span class="slot-room">${room}호</span></a>`
           : `<div class="slot"><span class="slot-time">${t}</span> · <span class="sold-out">예약불가</span></div>`;
       }).join('');
-      return send(res, 200, page(`${room}호 예약`, `<div id="slot-list"><h2>${date} · ${room}호</h2>${rows}</div>`));
+      // 실제 사이트에서 흔한 공지 팝업. 닫지 않으면 화면 전체를 덮어 클릭이 막힙니다.
+      const popup = `<div id="notice-popup"><div><p>[공지] 예약 규정이 변경되었습니다.</p>
+        <button id="notice-close">닫기</button></div></div>
+        <script>document.getElementById('notice-close').onclick=function(){
+          document.getElementById('notice-popup').remove();};</script>`;
+      // 호실 드롭다운. inspect 가 여기서 호실 코드를 뽑아냅니다.
+      const options = ROOMS.map((r, i) => `<option value="${20 + i}">${r}호</option>`).join('');
+      return send(res, 200, page(`${room}호 예약`,
+        `${popup}<select id="location" name="location">${options}</select>
+         <div id="slot-list"><h2>${date} · ${room}호</h2>${rows}</div>`));
     }
 
     const open = Date.now() - START >= OPEN_AFTER_MS;
