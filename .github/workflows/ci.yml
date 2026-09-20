@@ -1,0 +1,36 @@
+# 푸시·PR 마다 기본 검사를 돌립니다.
+# npm ci 는 잠금 파일이 package.json 과 어긋나면 실패하므로,
+# 예약 워크플로가 실제 오픈 시각에 그 이유로 죽는 일을 미리 막아 줍니다.
+name: 검사
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 의존성 설치 (잠금 파일 동기화 확인)
+        run: npm ci
+
+      - name: 타입 검사
+        run: npm run typecheck
+
+      - name: 단위 테스트
+        run: npm test
+
+      - name: 설정 파일이 올바른 JSON 인지
+        run: |
+          for f in config/*.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" || exit 1
+            echo "  ok  $f"
+          done
