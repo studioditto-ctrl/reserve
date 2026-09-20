@@ -1,47 +1,81 @@
 {
   "name": "본관 3층 강의실 (311~318 중 한 곳)",
-
   "//adapter": "만나교회 사이트 셀렉터. inspect 로 채워야 합니다.",
   "adapter": "config/manna.profile.json",
-
   "//schedule": "예약 대상: 매월 둘째주·넷째주 일요일 오전 11시~12시",
-  "schedule": { "weekday": "일", "weeksOfMonth": [2, 4], "monthsAhead": 2 },
-
+  "schedule": {
+    "weekday": "일",
+    "weeksOfMonth": [
+      2,
+      4
+    ],
+    "monthsAhead": 2
+  },
   "target": {
     "dates": [],
-    "//rooms": "URL 의 location 코드입니다. 호실명이 아니라 사이트 내부 코드라서 확인이 필요합니다. 등록 페이지에서 inspect 를 돌리면 드롭다운에서 311~318 코드가 한 번에 나옵니다. 앞에서부터 확인해 먼저 비어 있는 곳 하나를 잡습니다.",
+    "//rooms": "311호=29 는 목록에서 확인. 312~318 은 '코드=340-호실' 규칙으로 추정한 값입니다. 307·309 처럼 빠진 번호가 있어 단정할 수 없으니, 목록 끝까지 확인한 뒤 고치세요.",
     "//codes": "장소예약 목록에서 확인된 코드들입니다. 어느 코드가 311~318 인지는 아직 미확인이라 label 이 TODO 입니다.",
     "rooms": [
-      { "id": "129", "label": "TODO-호실명" },
-      { "id": "130", "label": "TODO-호실명" },
-      { "id": "131", "label": "TODO-호실명" },
-      { "id": "132", "label": "TODO-호실명" },
-      { "id": "140", "label": "TODO-호실명" },
-      { "id": "141", "label": "TODO-호실명" },
-      { "id": "142", "label": "TODO-호실명" },
-      { "id": "143", "label": "TODO-호실명" },
-      { "id": "144", "label": "TODO-호실명" },
-      { "id": "145", "label": "TODO-호실명" }
+      {
+        "id": "29",
+        "label": "311호 (확인됨, 11~30인)"
+      },
+      {
+        "id": "28",
+        "label": "312호 (추정 — 확인 필요)"
+      },
+      {
+        "id": "27",
+        "label": "313호 (추정 — 확인 필요)"
+      },
+      {
+        "id": "26",
+        "label": "314호 (추정 — 확인 필요)"
+      },
+      {
+        "id": "25",
+        "label": "315호 (추정 — 확인 필요)"
+      },
+      {
+        "id": "24",
+        "label": "316호 (추정 — 확인 필요)"
+      },
+      {
+        "id": "23",
+        "label": "317호 (추정 — 확인 필요)"
+      },
+      {
+        "id": "22",
+        "label": "318호 (추정 — 확인 필요)"
+      }
     ],
     "//time": "오전 11시~12시 1시간. 30분 칸 사이트라 11시·11시30분 두 칸을 함께 체크합니다.",
     "timeFrom": "11:00",
     "durationMin": 60
   },
-
   "watch": {
     "//openAt": "예약 오픈: 첫째주·셋째주 토요일 오후 9시 (예약일 8일 전)",
-    "openAt": { "weekday": "토", "weeksOfMonth": [1, 3], "time": "21:00" },
+    "openAt": {
+      "weekday": "토",
+      "weeksOfMonth": [
+        1,
+        3
+      ],
+      "time": "21:00"
+    },
     "//burst": "오픈 1분 전부터 10분 동안 1초 간격으로 확인합니다.",
-    "burst": { "beforeSec": 60, "afterSec": 600, "intervalMs": 1000 },
+    "burst": {
+      "beforeSec": 60,
+      "afterSec": 600,
+      "intervalMs": 1000
+    },
     "//onlyAtOpen": "오픈 구간 외에는 확인하지 않고 대기만 합니다. false 로 두면 취소분도 노립니다.",
     "onlyAtOpen": true,
-
     "autoBook": true,
     "//stopAfterBooking": "한 곳만 잡으면 되므로 예약 성공 즉시 종료합니다.",
     "stopAfterBooking": true,
     "//maxDates": "오픈 순간에는 가장 가까운 날짜 하나만 훑습니다 (먼 날짜는 아직 안 열림).",
     "maxDates": 1,
-
     "intervalSec": 30,
     "maxConsecutiveErrors": 5
   }

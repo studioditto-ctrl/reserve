@@ -287,10 +287,12 @@ export class ProfileAdapter implements SiteAdapter {
               : wrapping;
           const label = ((labelEl ?? el.parentElement)?.textContent ?? '').replace(/\s+/g, ' ').trim();
           const scope = wrapping ?? el.parentElement;
-          const blocked =
-            el.disabled ||
-            el.getAttribute('aria-disabled') === 'true' ||
-            (unavailable ? Boolean(scope?.querySelector(unavailable)) : false);
+          // 예약 불가 표시는 감싸는 요소 "자신"의 class 인 경우와
+          // 그 안의 별도 요소("마감" 배지)인 경우가 둘 다 있습니다.
+          const marked = unavailable
+            ? Boolean(scope?.matches(unavailable)) || Boolean(scope?.querySelector(unavailable))
+            : false;
+          const blocked = el.disabled || el.getAttribute('aria-disabled') === 'true' || marked;
           return { index, label, available: !blocked };
         });
       },

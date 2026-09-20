@@ -142,9 +142,11 @@ const server = createServer(async (req, res) => {
     const rows = CB_LABELS.map((label) => {
       const key = `${date} ${room} ${label}`;
       const free = open && room === FREE_ROOM && !booked.has(key);
+      // MOCK_CLASS_ONLY=1 이면 만나교회처럼 disabled 없이 class 로만 막습니다.
+      const classOnly = process.env.MOCK_CLASS_ONLY === '1';
       return `<label class="cb${free ? '' : ' taken'}">
-        <input type="checkbox" name="reservation[time]" value="${label}"${free ? '' : ' disabled'}>
-        ${label}${free ? '' : ' <span class="sold-out">예약불가</span>'}</label>`;
+        <input type="checkbox" name="reservation[time]" value="${label}"${free || classOnly ? '' : ' disabled'}>
+        ${label}${free || classOnly ? '' : ' <span class="sold-out">예약불가</span>'}</label>`;
     }).join('');
     return send(res, 200, page(`${room}호 예약`, `<div id="slot-list"><h2>${date} · ${room}호</h2>
       <form method="post" action="/cconfirm">

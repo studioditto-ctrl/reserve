@@ -30,7 +30,8 @@
       "selector": "input[name=\"reservation[time]\"]",
       "labelFrom": "label"
     },
-    "//unavailableSelector": "TODO — 이미 찬 시간대가 disabled 면 설정 없이도 걸러집니다. class 로만 표시된다면 그 class 를 여기 적으세요.",
+    "//unavailableSelector": "확인됨 — 예약 불가는 disabled 속성이 아니라 감싸는 label 의 class 로 표시됩니다. 지난 시각도 이 class 가 붙습니다.",
+    "unavailableSelector": ".jt-reservation-choices__time-disabled",
     "slotSelector": "input[name=\"reservation[time]\"]"
   },
 
