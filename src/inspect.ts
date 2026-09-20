@@ -32,6 +32,24 @@ export interface InspectReport {
   lists: ListGuess[];
   loginStateCandidates: string[];
   selects: SelectGuess[];
+  /** 폼 입력칸들. 신청 폼의 book.steps 를 짤 때 씁니다. */
+  fields: FieldGuess[];
+  /** 링크의 쿼리 파라미터별 값 목록. ?location=29 같은 내부 코드를 여기서 찾습니다. */
+  linkParams: LinkParamGuess[];
+}
+
+/** 폼 입력칸 하나. */
+export interface FieldGuess {
+  selector: string;
+  tag: string;
+  type?: string;
+  label?: string;
+}
+
+/** 링크에 반복해서 나타나는 쿼리 파라미터. */
+export interface LinkParamGuess {
+  param: string;
+  values: { value: string; label: string }[];
 }
 
 /**
@@ -60,6 +78,10 @@ export async function inspectPage(page: Page): Promise<InspectReport> {
       if (name) return `${el.tagName.toLowerCase()}[name="${name}"]`;
       const classes = Array.from(el.classList).filter((c) => !/^(is-|has-)?(active|selected|on|open)$/i.test(c));
       if (classes.length) return `${el.tagName.toLowerCase()}.${classes.map((c) => CSS.escape(c)).join('.')}`;
+      // id·name·class 가 모두 없으면 태그만으로는 못 찾으므로 글자로 가리킵니다.
+      // Playwright 의 :has-text() 문법이라 그대로 프로필에 쓸 수 있습니다.
+      const own = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+      if (own && own.length <= 20) return `${el.tagName.toLowerCase()}:has-text("${own}")`;
       return el.tagName.toLowerCase();
     };
 
@@ -93,6 +115,65 @@ export async function inspectPage(page: Page): Promise<InspectReport> {
       .filter((el) => el.children.length === 0 && LOGGED_IN.test(text(el)))
       .slice(0, 6)
       .map((el) => `${sel(el)}   ← "${text(el).slice(0, 30)}"`);
+
+    // ── 폼 입력칸 ─────────────────────────────────────────
+    /** 입력칸에 붙은 라벨을 찾습니다. */
+    const labelOf = (el: Element): string | undefined => {
+      const aria = el.getAttribute('aria-label');
+      if (aria) return aria;
+      if (el.id) {
+        const byFor = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+        if (byFor) return text(byFor);
+      }
+      const wrapping = el.closest('label');
+      if (wrapping) return text(wrapping).slice(0, 40);
+      const ph = el.getAttribute('placeholder');
+      if (ph) return ph;
+      // 바로 앞 형제나 부모의 첫 글자 덩어리를 라벨로 봅니다.
+      const prev = el.previousElementSibling;
+      if (prev && prev.children.length === 0) {
+        const t = text(prev);
+        if (t && t.length <= 30) return t;
+      }
+      return undefined;
+    };
+
+    const fields = Array.from(document.querySelectorAll('input, select, textarea, button'))
+      .filter((el) => (el as HTMLInputElement).type !== 'hidden')
+      .slice(0, 50)
+      .map((el) => {
+        const type = el.getAttribute('type');
+        const label = labelOf(el);
+        return {
+          selector: sel(el),
+          tag: el.tagName.toLowerCase(),
+          ...(type ? { type } : {}),
+          ...(label ? { label } : {}),
+        };
+      });
+
+    // ── 링크의 쿼리 파라미터 (?location=29 같은 내부 코드) ──
+    const paramMap = new Map<string, Map<string, string>>();
+    for (const a of Array.from(document.querySelectorAll('a[href]'))) {
+      let u: URL;
+      try {
+        u = new URL(a.getAttribute('href')!, location.href);
+      } catch {
+        continue;
+      }
+      for (const [k, v] of Array.from(u.searchParams)) {
+        if (!paramMap.has(k)) paramMap.set(k, new Map());
+        const seen = paramMap.get(k)!;
+        if (!seen.has(v)) seen.set(v, text(a).slice(0, 40));
+      }
+    }
+    const linkParams = Array.from(paramMap)
+      .filter(([, values]) => values.size >= 2)
+      .map(([param, values]) => ({
+        param,
+        values: Array.from(values, ([value, label]) => ({ value, label })).slice(0, 40),
+      }))
+      .sort((a, b) => b.values.length - a.values.length);
 
     // ── 드롭다운 (장소/호실 코드가 들어 있는 경우가 많습니다) ──
     const selects = Array.from(document.querySelectorAll('select'))
@@ -134,7 +215,9 @@ export async function inspectPage(page: Page): Promise<InspectReport> {
       if (bodies.length < 3) continue;
 
       const first = els[0]!;
-      const hasTime = bodies.some((t) => TIME.test(t));
+      // 시각만 짧게 적힌 칸이 진짜 시간표입니다. 공지 목록처럼 긴 글은 걸러냅니다.
+      const avgLen = bodies.reduce((n, t) => n + t.length, 0) / bodies.length;
+      const hasTime = bodies.some((t) => TIME.test(t)) && avgLen <= 60;
       const anchor = first.matches('a[href]') ? 'self' : first.querySelector('a[href]') ? 'a' : undefined;
 
       lists.push({
@@ -169,6 +252,8 @@ export async function inspectPage(page: Page): Promise<InspectReport> {
       lists: deduped.slice(0, 6),
       loginStateCandidates,
       selects,
+      fields,
+      linkParams,
     };
   });
 }
@@ -190,6 +275,21 @@ export function formatReport(r: InspectReport): string {
   if (r.loginStateCandidates.length) {
     out.push('\n── successSelector 후보 (로그인 상태에서만 보이는 요소) ──');
     for (const c of r.loginStateCandidates) out.push(`  ${c}`);
+  }
+
+  if (r.linkParams.length) {
+    out.push('\n── 링크의 쿼리 파라미터 (호실·장소 코드 확인용) ──');
+    for (const lp of r.linkParams) {
+      out.push(`  ?${lp.param}=  (${lp.values.length}종)`);
+      for (const v of lp.values) out.push(`     ${v.value.padEnd(10)} ${v.label}`);
+    }
+  }
+
+  if (r.fields.length) {
+    out.push('\n── 폼 입력칸 (신청 폼 단계용) ──────────────');
+    for (const f of r.fields) {
+      out.push(`  ${f.selector.padEnd(38)} ${f.tag}${f.type ? `[${f.type}]` : ''}${f.label ? `  ← ${f.label}` : ''}`);
+    }
   }
 
   if (r.selects.length) {
