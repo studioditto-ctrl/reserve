@@ -18,10 +18,8 @@
     "passwordSelector": "#field_user_pw",
     "//submitSelector": "페이지에 검색 등 다른 제출 버튼이 있어 로그인 폼 안의 것만 집습니다.",
     "submitSelector": "form:has(#field_user_pw) input[type=submit]",
-    "//beforeSubmit": "자동 로그인을 켜면 세션이 오래 유지됩니다. 없으면 그냥 넘어갑니다.",
-    "beforeSubmit": [
-      { "action": "check", "selector": "input[name=rememberme]", "optional": true }
-    ],
+    "//beforeSubmit": "비워 둡니다. 자동 로그인 체크박스가 직접 보이지 않는 형태(커스텀 디자인)라 Playwright 가 누르지 못하고 16초를 버렸습니다. 클라우드는 매번 새 환경이라 자동 로그인으로 얻을 것도 없습니다.",
+    "beforeSubmit": [],
     "manual": false
   },
 
