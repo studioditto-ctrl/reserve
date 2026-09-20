@@ -7,7 +7,14 @@
     "successSelector": "#account",
     "usernameSelector": "#userid",
     "passwordSelector": "#userpw",
-    "submitSelector": "#login-btn"
+    "submitSelector": "form:has(#userpw) input[type=submit]",
+    "beforeSubmit": [
+      {
+        "action": "check",
+        "selector": "input[name=rememberme]",
+        "optional": true
+      }
+    ]
   },
   "search": {
     "urlTemplate": "http://localhost:8787/booking?date={date}&party={party}",
@@ -23,11 +30,29 @@
   "book": {
     "clickSlot": true,
     "steps": [
-      { "action": "waitFor", "selector": "#name" },
-      { "action": "fill", "selector": "#name", "valueFrom": "env:BOOKING_NAME" },
-      { "action": "fill", "selector": "#phone", "valueFrom": "env:BOOKING_PHONE" },
-      { "action": "check", "selector": "#agree" },
-      { "action": "click", "selector": "#confirm-btn", "final": true }
+      {
+        "action": "waitFor",
+        "selector": "#name"
+      },
+      {
+        "action": "fill",
+        "selector": "#name",
+        "valueFrom": "env:BOOKING_NAME"
+      },
+      {
+        "action": "fill",
+        "selector": "#phone",
+        "valueFrom": "env:BOOKING_PHONE"
+      },
+      {
+        "action": "check",
+        "selector": "#agree"
+      },
+      {
+        "action": "click",
+        "selector": "#confirm-btn",
+        "final": true
+      }
     ],
     "successSelector": ".done",
     "confirmationSelector": ".code"

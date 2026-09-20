@@ -46,6 +46,11 @@ export interface SiteProfile {
     submitSelector?: string;
     /** 2FA·캡차가 있는 사이트: 사람이 직접 로그인할 때까지 기다립니다. */
     manual?: boolean;
+    /**
+     * 아이디·비밀번호를 채운 뒤, 제출을 누르기 전에 할 일.
+     * "자동 로그인" 체크 같은 것을 여기 적습니다.
+     */
+    beforeSubmit?: Step[];
   };
   search: {
     /** {date} {party} {time} 이 치환됩니다. */
@@ -255,6 +260,7 @@ export class ProfileAdapter implements SiteAdapter {
       }
       await page.locator(login.usernameSelector).first().fill(creds.username);
       await page.locator(login.passwordSelector).first().fill(creds.password);
+      if (login.beforeSubmit?.length) await runSteps(page, login.beforeSubmit, { dryRun: false });
       if (login.submitSelector) await page.locator(login.submitSelector).first().click();
       else await page.locator(login.passwordSelector).first().press('Enter');
     }

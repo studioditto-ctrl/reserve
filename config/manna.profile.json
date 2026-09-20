@@ -4,8 +4,8 @@
   "name": "manna",
   "baseUrl": "https://manna.or.kr",
 
-  "//dismiss": "로그인 페이지 공지 팝업의 닫기 버튼 후보. 보일 때만 누르고 없으면 넘어갑니다.",
-  "dismiss": ["#global_search_popup_close", "#popup_close", ".popup-close", ".layer_close", "button.close"],
+  "//dismiss": "공지 팝업의 닫기 버튼. 보일 때만 누르고 없으면 넘어갑니다. 주의: 로그인 폼이 modal_page 안에 들어 있으므로 .modal_page_close 나 .xl-modal-pop__close 를 여기 넣으면 로그인 창이 닫혀 버립니다.",
+  "dismiss": ["#global_search_popup_close", "#popup_close", ".popup-close", ".layer_close"],
   "closePopupWindows": true,
 
   "login": {
@@ -13,11 +13,16 @@
     "checkUrl": "https://manna.or.kr/",
     "//successSelector": "확인됨 — 로그인 상태에서만 '로그아웃' 링크가 보입니다.",
     "successSelector": "a:has-text(\"로그아웃\")",
-    "//입력칸": "TODO — 로그인 페이지에서 조사 스니펫을 돌리면 나옵니다. 그 전까지는 login --manual 로 직접 로그인하세요.",
-    "usernameSelector": "TODO",
-    "passwordSelector": "TODO",
-    "submitSelector": "TODO",
-    "manual": true
+    "//입력칸": "확인됨 — 워드프레스 기반이라 name 이 log/pwd 입니다. 로그인 폼은 모달 안에 있습니다.",
+    "usernameSelector": "#field_user_id",
+    "passwordSelector": "#field_user_pw",
+    "//submitSelector": "페이지에 검색 등 다른 제출 버튼이 있어 로그인 폼 안의 것만 집습니다.",
+    "submitSelector": "form:has(#field_user_pw) input[type=submit]",
+    "//beforeSubmit": "자동 로그인을 켜면 세션이 오래 유지됩니다. 없으면 그냥 넘어갑니다.",
+    "beforeSubmit": [
+      { "action": "check", "selector": "input[name=rememberme]", "optional": true }
+    ],
+    "manual": false
   },
 
   "search": {

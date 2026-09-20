@@ -15,6 +15,8 @@ const OPEN_AFTER_MS = Number(process.env.MOCK_OPEN_AFTER ?? 0) * 1000;
 
 const START = Date.now();
 const SESSIONS = new Set<string>();
+/** 자동 로그인 체크 여부. beforeSubmit 단계가 실제로 눌렸는지 확인하는 용도입니다. */
+const REMEMBERED = new Set<string>();
 const TIMES = ['17:30', '18:00', '19:00', '19:30', '20:30'];
 /** 열려 있는 시간대. 나머지는 매진으로 표시됩니다. */
 const OPEN_TIMES = new Set(['19:00', '20:30']);
@@ -70,11 +72,17 @@ const server = createServer(async (req, res) => {
   const path = url.pathname;
 
   if (path === '/login' && req.method === 'GET') {
-    return send(res, 200, page('로그인', `<form method="post" action="/login">
-      <p><input id="userid" name="userid" placeholder="아이디"></p>
-      <p><input id="userpw" name="userpw" type="password" placeholder="비밀번호"></p>
-      <p><button id="login-btn" type="submit">로그인</button></p>
-      <p style="color:#888;font-size:13px">데모 계정: ${USER} / ${PASS}</p></form>`));
+    // 만나교회와 같은 구조를 흉내 냅니다.
+    // 폼 밖에도 제출 버튼이 있어서(검색), 로그인 버튼만 정확히 집어야 합니다.
+    return send(res, 200, page('로그인', `
+      <form method="get" action="/search"><input name="s" placeholder="검색">
+        <input type="submit" value="검색하기"></form>
+      <form method="post" action="/login">
+        <p><input id="userid" name="userid" placeholder="아이디"></p>
+        <p><input id="userpw" name="userpw" type="password" placeholder="비밀번호"></p>
+        <p><label><input type="checkbox" name="rememberme"> 자동 로그인</label></p>
+        <p><input type="submit" value="로그인"></p>
+        <p style="color:#888;font-size:13px">데모 계정: ${USER} / ${PASS}</p></form>`));
   }
 
   if (path === '/login' && req.method === 'POST') {
@@ -82,6 +90,7 @@ const server = createServer(async (req, res) => {
     if (form.get('userid') === USER && form.get('userpw') === PASS) {
       const sid = Math.random().toString(36).slice(2);
       SESSIONS.add(sid);
+      if (form.get('rememberme')) REMEMBERED.add(sid);
       return redirect(res, '/my', { 'set-cookie': `sid=${sid}; Path=/; HttpOnly` });
     }
     return send(res, 401, page('로그인 실패', '<p id="login-error">아이디 또는 비밀번호가 틀렸습니다.</p><a href="/login">다시 시도</a>'));
@@ -90,7 +99,11 @@ const server = createServer(async (req, res) => {
   if (!loggedIn(req)) return redirect(res, '/login');
 
   if (path === '/my') {
-    return send(res, 200, page('내 정보', '<div id="account">demo 님</div><a href="/booking?date=2026-09-05&party=2">예약하기</a>'));
+    const remembered = REMEMBERED.has(cookies(req).sid ?? '');
+    return send(res, 200, page('내 정보',
+      `<div id="account">demo 님</div>
+       <div id="remember-state">자동 로그인: ${remembered ? '켜짐' : '꺼짐'}</div>
+       <a href="/booking?date=2026-09-05&party=2">예약하기</a>`));
   }
 
   if (path === '/booking') {

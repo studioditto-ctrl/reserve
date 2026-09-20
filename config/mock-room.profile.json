@@ -11,7 +11,14 @@
     "successSelector": "#account",
     "usernameSelector": "#userid",
     "passwordSelector": "#userpw",
-    "submitSelector": "#login-btn"
+    "submitSelector": "form:has(#userpw) input[type=submit]",
+    "beforeSubmit": [
+      {
+        "action": "check",
+        "selector": "input[name=rememberme]",
+        "optional": true
+      }
+    ]
   },
   "search": {
     "urlTemplate": "http://localhost:8787/booking?date={date}&room={room}",
