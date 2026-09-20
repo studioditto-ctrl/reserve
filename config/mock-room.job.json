@@ -1,0 +1,17 @@
+{
+  "name": "본관 3층 강의실 (데모)",
+  "adapter": "config/mock-room.profile.json",
+  "schedule": { "weekday": "sat", "weeksOfMonth": [2, 4], "monthsAhead": 1 },
+  "target": {
+    "dates": [],
+    "rooms": ["311", "312", "313", "314", "315", "316", "317", "318"],
+    "timeFrom": "11:00",
+    "timeTo": "11:00"
+  },
+  "watch": {
+    "intervalSec": 10,
+    "autoBook": true,
+    "stopAfterBooking": true,
+    "maxConsecutiveErrors": 3
+  }
+}

@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>예약 설정</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--muted:#666;--line:#ddd;--card:#fafafa;--accent:#2563eb;--ok:#15803d;--warn:#b45309;--err:#b91c1c}
+@media(prefers-color-scheme:dark){:root{--bg:#16181c;--fg:#e8e8e8;--muted:#9aa0a6;--line:#33363d;--card:#1e2126;--accent:#60a5fa;--ok:#4ade80;--warn:#fbbf24;--err:#f87171}}
+*{box-sizing:border-box}
+body{font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:var(--bg);color:var(--fg)}
+.wrap{max-width:860px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:16px;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.sub{color:var(--muted);font-size:13px;margin:0 0 24px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit;font-size:14px}
+textarea{min-height:92px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row>div{flex:1;min-width:130px}
+button{padding:8px 14px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit;font-size:14px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.weeks{display:flex;gap:14px;margin-top:6px}
+.weeks label{display:flex;align-items:center;gap:5px;margin:0;color:var(--fg);font-size:14px}
+.weeks input{width:auto}
+.chk{display:flex;align-items:center;gap:8px;margin-top:10px}
+.chk input{width:auto}
+.chk span{font-size:14px}
+.note{font-size:12px;color:var(--muted);margin-top:6px}
+.msg{margin-top:12px;padding:10px 12px;border-radius:6px;font-size:13px;white-space:pre-wrap;border:1px solid var(--line)}
+.msg.ok{color:var(--ok);border-color:var(--ok)}
+.msg.err{color:var(--err);border-color:var(--err)}
+.msg.warn{color:var(--warn);border-color:var(--warn)}
+#log{background:#0d0f12;color:#d4d4d4;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:12px;border-radius:6px;height:230px;overflow-y:auto;white-space:pre-wrap}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:500}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11px;border:1px solid var(--line)}
+.pill.on{color:var(--ok);border-color:var(--ok)}
+.pill.off{color:var(--muted)}
+.pill.run{color:var(--accent);border-color:var(--accent)}
+details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:8px}
+img.shot{max-width:100%;border:1px solid var(--line);border-radius:6px;margin-top:10px}
+table.rooms{margin-top:6px}
+table.rooms td{padding:4px 6px}
+table.rooms input[type=text]{padding:5px 8px;font-size:13px}
+table.rooms input[type=checkbox]{width:auto}
+table.rooms button{padding:3px 8px;font-size:13px}
+td.rank{color:var(--accent);font-weight:600;text-align:center}
+td.rank.off{color:var(--muted);font-weight:400}
+tr.unchecked td:nth-child(3),tr.unchecked td:nth-child(4){opacity:.45}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>예약 설정</h1>
+<p class="sub">여기서 입력한 값으로 오픈 시각에 자동으로 예약합니다. 이 페이지는 이 컴퓨터에서만 열립니다.</p>
+
+<section>
+  <h2>1. 로그인 정보</h2>
+  <p class="note">오픈 시각에 사람 없이 로그인하려면 저장이 필요합니다. <code>data/secrets.json</code> 에 본인만 읽을 수 있는 권한으로 저장되며 커밋되지 않습니다.</p>
+  <div class="row">
+    <div><label>아이디</label><input id="cred-user" autocomplete="off"></div>
+    <div><label>비밀번호</label><input id="cred-pass" type="password" autocomplete="off"></div>
+  </div>
+  <div class="btns">
+    <button class="primary" onclick="saveCreds()">저장</button>
+    <button onclick="testLogin()">저장된 정보로 로그인 테스트</button>
+    <button onclick="manualLogin()">브라우저 창에서 직접 로그인</button>
+    <button onclick="clearCreds()">저장된 정보 지우기</button>
+  </div>
+  <div id="cred-msg"></div>
+</section>
+
+<section>
+  <h2>2. 예약 내용</h2>
+  <input type="hidden" id="job-id">
+  <label>작업 이름</label>
+  <input id="name" value="본관 3층 강의실 (311~318 중 한 곳)">
+
+  <label>사이트 프로필</label>
+  <select id="adapter"></select>
+
+  <div class="row">
+    <div>
+      <label>예약 요일</label>
+      <select id="tWeekday"><option value="일">일요일</option><option value="월">월요일</option><option value="화">화요일</option><option value="수">수요일</option><option value="목">목요일</option><option value="금">금요일</option><option value="토">토요일</option></select>
+    </div>
+    <div>
+      <label>시작 시각</label>
+      <input id="timeFrom" type="time" value="11:00" step="1800">
+    </div>
+    <div>
+      <label>길이 (분)</label>
+      <input id="durationMin" type="number" value="60" min="30" step="30">
+    </div>
+  </div>
+  <label>매월 몇째 주</label>
+  <div class="weeks" id="tWeeks"></div>
+
+  <label>호실 — 체크한 것만, <b>위에서부터 순서대로</b> 시도해 먼저 비어 있는 곳 하나를 잡습니다</label>
+  <table class="rooms"><thead><tr><th style="width:38px"></th><th style="width:46px">순위</th><th style="width:76px">코드</th><th>이름</th><th style="width:108px"></th></tr></thead><tbody id="roomBody"></tbody></table>
+  <div class="btns">
+    <button onclick="addRoom()">호실 추가</button>
+    <button onclick="setRooms(MANNA_ROOMS)">만나 본관 3층 불러오기</button>
+    <button onclick="allRooms(true)">전체 체크</button>
+    <button onclick="allRooms(false)">전체 해제</button>
+  </div>
+</section>
+
+<section>
+  <h2>3. 신청서에 들어갈 값</h2>
+  <div class="row">
+    <div><label>예약자 (직분 포함)</label><input id="v-name" placeholder="김만나 집사"></div>
+    <div><label>연락처</label><input id="v-phone" placeholder="010-0000-0000"></div>
+  </div>
+  <div class="row">
+    <div><label>사용 목적</label><input id="v-reason" placeholder="소그룹 모임"></div>
+    <div><label>인원</label><input id="v-count" type="number" placeholder="8" min="1"></div>
+  </div>
+  <label>메모 (선택)</label>
+  <input id="v-memo">
+</section>
+
+<section>
+  <h2>4. 언제 예약할지</h2>
+  <div class="row">
+    <div>
+      <label>오픈 요일</label>
+      <select id="oWeekday"><option value="토">토요일</option><option value="일">일요일</option><option value="월">월요일</option><option value="화">화요일</option><option value="수">수요일</option><option value="목">목요일</option><option value="금">금요일</option></select>
+    </div>
+    <div><label>오픈 시각</label><input id="oTime" type="time" value="21:00"></div>
+  </div>
+  <label>매월 몇째 주에 오픈</label>
+  <div class="weeks" id="oWeeks"></div>
+
+  <div class="chk"><input type="checkbox" id="autoBook" checked><span>빈자리를 찾으면 자동으로 신청까지 진행</span></div>
+  <div class="chk"><input type="checkbox" id="dryRun" checked><span><b>예행연습 모드</b> — 최종 신청 버튼 직전에 멈춥니다 (끄면 실제로 예약됩니다)</span></div>
+  <div class="chk"><input type="checkbox" id="enabled" checked><span>이 작업을 스케줄러가 자동 실행</span></div>
+
+  <details>
+    <summary>세부 설정</summary>
+    <div class="row">
+      <div><label>오픈 몇 초 전부터 몰아치기</label><input id="beforeSec" type="number" value="60"></div>
+      <div><label>오픈 후 몇 초까지</label><input id="afterSec" type="number" value="600"></div>
+      <div><label>몰아칠 때 간격 (ms)</label><input id="intervalMs" type="number" value="1000" min="500"></div>
+    </div>
+    <div class="row">
+      <div><label>평소 확인 간격 (초)</label><input id="intervalSec" type="number" value="30" min="5"></div>
+      <div><label>한 번에 확인할 날짜 수</label><input id="maxDates" type="number" value="1" min="1"></div>
+    </div>
+  </details>
+
+  <div class="btns">
+    <button class="primary" onclick="save()">저장</button>
+    <button onclick="loadManna()">만나교회 기본값 불러오기</button>
+  </div>
+  <div id="save-msg"></div>
+</section>
+
+<section>
+  <h2>5. 예행연습</h2>
+  <p class="note">오픈 전에 미리 돌려 보세요. <b>지금 확인</b>은 조회만 하고, <b>예행연습</b>은 신청서 작성까지 하고 마지막 버튼 직전에 멈춘 뒤 화면을 보여줍니다.</p>
+  <div class="btns">
+    <button onclick="doCheck()">지금 확인 (조회만)</button>
+    <button onclick="doDryRun()">예행연습 (신청 직전까지)</button>
+  </div>
+  <div id="test-msg"></div>
+  <div id="test-shot"></div>
+</section>
+
+<section>
+  <h2>6. 수동 예약 (날짜·시각 직접 지정)</h2>
+  <p class="note">반복 일정·오픈 시각과 무관하게, 지정한 날짜를 <b>지금</b> 처리합니다. 호실은 위에서 체크한 순서를 그대로 씁니다. 먼저 작업을 저장하세요.</p>
+  <div class="row">
+    <div><label>날짜</label><input id="m-date" type="date"></div>
+    <div><label>시작 시각</label><input id="m-time" type="time" step="1800" value="11:00"></div>
+    <div><label>길이 (분)</label><input id="m-duration" type="number" value="60" min="30" step="30"></div>
+  </div>
+  <div class="chk"><input type="checkbox" id="m-dry" checked><span><b>예행연습 모드</b> — 끄면 실제로 예약됩니다</span></div>
+  <div class="btns">
+    <button onclick="mCheck()">지금 조회</button>
+    <button class="primary" onclick="mBook()">지금 예약</button>
+    <button onclick="mWatch()">빈자리 날 때까지 대기</button>
+  </div>
+  <div id="m-msg"></div>
+  <div id="m-shot"></div>
+</section>
+
+<section>
+  <h2>7. GitHub 에서 돌리기</h2>
+  <p class="note">이 컴퓨터를 켜 두지 않아도 되도록, 설정을 저장소에 올려 GitHub Actions 가 대신 실행하게 합니다. 아래 두 덩어리를 각각 붙여 넣으세요.</p>
+  <div class="btns"><button onclick="doExport()">내보내기</button></div>
+  <div id="ex-msg"></div>
+  <div id="ex-out" style="display:none">
+    <label><code>config/manna.job.json</code> 에 덮어쓸 내용</label>
+    <textarea id="ex-config" rows="14" readonly></textarea>
+    <label>저장소 Settings → Secrets → <code>BOOKING_VALUES</code> 에 넣을 값 (개인정보라 저장소에 두지 않습니다)</label>
+    <textarea id="ex-secret" rows="3" readonly></textarea>
+  </div>
+</section>
+
+<section>
+  <h2>8. 저장된 작업</h2>
+  <table id="jobs"><tbody></tbody></table>
+</section>
+
+<section>
+  <h2>9. 실시간 로그</h2>
+  <div id="log"></div>
+</section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const MANNA_ROOMS = [
+  { id: '29', label: '311호 (11~30인)' }, { id: '28', label: '312호 (6~10인)' },
+  { id: '27', label: '313호 (1~5인)' },  { id: '26', label: '314호 (1~5인)' },
+  { id: '25', label: '315호 (1~5인)' },  { id: '24', label: '316호 (1~5인)' },
+  { id: '23', label: '317호 (1~5인)' },  { id: '22', label: '318호 (1~5인)' },
+];
+
+/** 호실 목록. 표시 순서가 곧 우선순위이고, 체크한 것만 실제로 시도합니다. */
+let rooms = [];
+const esc = (v) => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+
+function setRooms(list, allOn = true) {
+  rooms = list.map((r) => ({ id: r.id, label: r.label ?? r.id, selected: r.selected ?? allOn }));
+  renderRooms();
+}
+function renderRooms() {
+  let rank = 0;
+  $('roomBody').innerHTML = rooms.map((r, i) => {
+    const n = r.selected ? ++rank : 0;
+    return `<tr class="${r.selected ? '' : 'unchecked'}">
+      <td><input type="checkbox" ${r.selected ? 'checked' : ''} onchange="toggleRoom(${i})"></td>
+      <td class="rank ${n ? '' : 'off'}">${n || '—'}</td>
+      <td><input type="text" value="${esc(r.id)}" onchange="rooms[${i}].id=this.value"></td>
+      <td><input type="text" value="${esc(r.label)}" onchange="rooms[${i}].label=this.value"></td>
+      <td><button onclick="moveRoom(${i},-1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button onclick="moveRoom(${i},1)" ${i === rooms.length - 1 ? 'disabled' : ''}>↓</button>
+          <button onclick="rmRoom(${i})">×</button></td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="note">호실을 추가하세요.</td></tr>';
+}
+function toggleRoom(i) { rooms[i].selected = !rooms[i].selected; renderRooms(); }
+function moveRoom(i, d) {
+  const j = i + d;
+  if (j < 0 || j >= rooms.length) return;
+  [rooms[i], rooms[j]] = [rooms[j], rooms[i]];
+  renderRooms();
+}
+function rmRoom(i) { rooms.splice(i, 1); renderRooms(); }
+function addRoom() { rooms.push({ id: '', label: '', selected: true }); renderRooms(); }
+function allRooms(on) { rooms.forEach((r) => (r.selected = on)); renderRooms(); }
+function selectedRooms() { return rooms.filter((r) => r.selected && r.id).map(({ id, label }) => ({ id, label })); }
+
+for (const [box, checked] of [['tWeeks', [2, 4]], ['oWeeks', [1, 3]]]) {
+  $(box).innerHTML = [1,2,3,4,5].map(n =>
+    `<label><input type="checkbox" value="${n}" ${checked.includes(n)?'checked':''}>${n}째</label>`).join('');
+}
+const weeks = (box) => [...$(box).querySelectorAll('input:checked')].map(i => Number(i.value));
+
+function msg(id, text, kind = '') {
+  $(id).className = 'msg ' + kind;
+  $(id).textContent = text;
+}
+
+function payload() {
+  return {
+    id: $('job-id').value || undefined,
+    name: $('name').value,
+    enabled: $('enabled').checked,
+    dryRun: $('dryRun').checked,
+    adapter: $('adapter').value,
+    schedule: { weekday: $('tWeekday').value, weeksOfMonth: weeks('tWeeks'), monthsAhead: 2 },
+    target: {
+      dates: [],
+      rooms: selectedRooms(),
+      timeFrom: $('timeFrom').value,
+      durationMin: Number($('durationMin').value),
+    },
+    values: {
+      name: $('v-name').value, reason: $('v-reason').value,
+      count: $('v-count').value, phone: $('v-phone').value, memo: $('v-memo').value,
+    },
+    watch: {
+      openAt: { weekday: $('oWeekday').value, weeksOfMonth: weeks('oWeeks'), time: $('oTime').value },
+      burst: { beforeSec: +$('beforeSec').value, afterSec: +$('afterSec').value, intervalMs: +$('intervalMs').value },
+      onlyAtOpen: true, autoBook: $('autoBook').checked, stopAfterBooking: true,
+      intervalSec: +$('intervalSec').value, maxDates: +$('maxDates').value, maxConsecutiveErrors: 5,
+    },
+  };
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { 'content-type': 'application/json' }, ...opts });
+  return res.json();
+}
+
+async function save() {
+  const body = payload();
+  if (!body.target.rooms.length) return msg('save-msg', '호실을 하나 이상 체크해 주세요.', 'err');
+  const r = await api('/api/jobs', { method: 'POST', body: JSON.stringify(body) });
+  if (r.error) return msg('save-msg', r.error, 'err');
+  $('job-id').value = r.job.id;
+  msg('save-msg', `저장했습니다.\n다음 오픈: ${r.preview.nextOpen ?? '(오픈 설정 없음)'}\n노릴 날짜: ${r.preview.dates.join(', ')}`, 'ok');
+  refresh();
+}
+
+function loadManna() {
+  $('name').value = '본관 3층 강의실 (311~318 중 한 곳)';
+  setRooms(MANNA_ROOMS);
+  const opt = [...$('adapter').options].find(o => o.value.includes('manna'));
+  if (opt) $('adapter').value = opt.value;
+  msg('save-msg', '만나교회 기본값을 채웠습니다. 신청서 값을 입력한 뒤 저장하세요.', 'ok');
+}
+
+async function saveCreds() {
+  const r = await api('/api/credentials', { method: 'POST',
+    body: JSON.stringify({ username: $('cred-user').value, password: $('cred-pass').value }) });
+  msg('cred-msg', r.error ?? '저장했습니다. 이제 "로그인 테스트" 로 확인해 보세요.', r.error ? 'err' : 'ok');
+  refresh();
+}
+async function clearCreds() {
+  await api('/api/credentials', { method: 'DELETE' });
+  $('cred-user').value = ''; $('cred-pass').value = '';
+  msg('cred-msg', '저장된 로그인 정보를 지웠습니다.', 'warn');
+  refresh();
+}
+
+function needJob(msgId) {
+  const id = $('job-id').value;
+  if (!id) { msg(msgId, '먼저 작업을 저장하세요.', 'warn'); return null; }
+  return id;
+}
+
+async function testLogin() {
+  const id = needJob('cred-msg'); if (!id) return;
+  msg('cred-msg', '로그인 확인 중…');
+  const r = await api(`/api/jobs/${id}/login`, { method: 'POST' });
+  msg('cred-msg', r.message, r.ok ? 'ok' : 'err');
+}
+async function manualLogin() {
+  const id = needJob('cred-msg'); if (!id) return;
+  msg('cred-msg', '브라우저 창이 열립니다. 직접 로그인하면 자동으로 감지합니다 (최대 5분).');
+  const r = await api(`/api/jobs/${id}/manual`, { method: 'POST' });
+  msg('cred-msg', r.message, r.ok ? 'ok' : 'err');
+}
+
+async function doCheck() {
+  const id = needJob('test-msg'); if (!id) return;
+  $('test-shot').innerHTML = '';
+  msg('test-msg', '조회 중…');
+  const r = await api(`/api/jobs/${id}/check`, { method: 'POST' });
+  if (r.error) return msg('test-msg', r.error, 'err');
+  const lines = r.slots.length
+    ? r.slots.map(s => `• ${s.label}`).join('\n')
+    : '조건에 맞는 빈자리가 없습니다.';
+  msg('test-msg', `확인한 날짜: ${r.dates.join(', ')}\n\n${lines}`, r.slots.length ? 'ok' : 'warn');
+}
+
+async function doDryRun() {
+  const id = needJob('test-msg'); if (!id) return;
+  $('test-shot').innerHTML = '';
+  msg('test-msg', '예행연습 중… 신청서를 채우고 마지막 버튼 직전에 멈춥니다.');
+  const r = await api(`/api/jobs/${id}/dryrun`, { method: 'POST' });
+  msg('test-msg', r.message, r.ok ? 'ok' : 'err');
+  if (r.screenshot) $('test-shot').innerHTML = `<img class="shot" src="${r.screenshot}" alt="예행연습 화면">`;
+}
+
+// ── 수동 예약 ──────────────────────────────────────────
+function manualBody() {
+  const date = $('m-date').value;
+  if (!date) { msg('m-msg', '날짜를 고르세요.', 'warn'); return null; }
+  return {
+    date,
+    timeFrom: $('m-time').value,
+    durationMin: Number($('m-duration').value) || undefined,
+    dryRun: $('m-dry').checked,
+  };
+}
+
+async function mCheck() {
+  const id = needJob('m-msg'); if (!id) return;
+  const body = manualBody(); if (!body) return;
+  $('m-shot').innerHTML = '';
+  msg('m-msg', `${body.date} ${body.timeFrom} 조회 중…`);
+  const r = await api(`/api/jobs/${id}/manualcheck`, { method: 'POST', body: JSON.stringify(body) });
+  if (r.error) return msg('m-msg', r.error, 'err');
+  msg('m-msg', r.slots.length
+    ? `예약 가능:\n${r.slots.map(s => `• ${s.label}`).join('\n')}`
+    : `${body.date} ${body.timeFrom} 에는 비어 있는 호실이 없습니다.`, r.slots.length ? 'ok' : 'warn');
+}
+
+async function mBook() {
+  const id = needJob('m-msg'); if (!id) return;
+  const body = manualBody(); if (!body) return;
+  if (!body.dryRun && !confirm(`${body.date} ${body.timeFrom} — 실제로 예약합니다. 되돌릴 수 없습니다. 진행할까요?`)) return;
+  $('m-shot').innerHTML = '';
+  msg('m-msg', body.dryRun ? '예행연습 중…' : '예약 중…');
+  const r = await api(`/api/jobs/${id}/manualbook`, { method: 'POST', body: JSON.stringify(body) });
+  msg('m-msg', r.message ?? r.error, r.ok ? 'ok' : 'err');
+  if (r.screenshot) $('m-shot').innerHTML = `<img class="shot" src="${r.screenshot}" alt="결과 화면">`;
+  refresh();
+}
+
+async function mWatch() {
+  const id = needJob('m-msg'); if (!id) return;
+  const body = manualBody(); if (!body) return;
+  if (!body.dryRun && !confirm(`${body.date} ${body.timeFrom} — 자리가 나면 실제로 예약합니다. 진행할까요?`)) return;
+  const r = await api(`/api/jobs/${id}/manualwatch`, { method: 'POST', body: JSON.stringify(body) });
+  msg('m-msg', r.message ?? r.error, r.ok ? 'ok' : 'err');
+  refresh();
+}
+
+async function doExport() {
+  const id = needJob('ex-msg'); if (!id) return;
+  const r = await api(`/api/jobs/${id}/export`, { method: 'POST' });
+  if (r.error) return msg('ex-msg', r.error, 'err');
+  $('ex-config').value = r.config;
+  $('ex-secret').value = r.secret;
+  $('ex-out').style.display = '';
+  msg('ex-msg', '아래 내용을 저장소에 옮기세요. 설정은 파일로, 개인정보는 Secret 으로 나뉩니다.', 'ok');
+}
+
+async function refresh() {
+  const s = await api('/api/state');
+  const sel = $('adapter');
+  if (!sel.options.length) sel.innerHTML = s.profiles.map(p => `<option>${p}</option>`).join('');
+  if (s.hasCredentials && !$('cred-user').value) $('cred-user').placeholder = '(저장되어 있음)';
+
+  $('jobs').querySelector('tbody').innerHTML = s.jobs.length ? s.jobs.map(j => {
+    const d = s.details.find(x => x.id === j.id) ?? {};
+    const open = j.nextOpen ? new Date(j.nextOpen).toLocaleString('ko-KR') : '—';
+    const last = j.lastRun ? `${new Date(j.lastRun.at).toLocaleString('ko-KR')}<br>${j.lastRun.message}` : '—';
+    return `<tr>
+      <td><b>${j.name}</b><br>
+        <span class="pill ${j.enabled?'on':'off'}">${j.enabled?'자동실행':'중지'}</span>
+        <span class="pill ${d.dryRun?'off':'run'}">${d.dryRun?'예행연습':'실제예약'}</span>
+        ${j.running?'<span class="pill run">실행중</span>':''}</td>
+      <td>${open}<br><span class="note">${(d.preview?.dates ?? []).slice(0,2).join(', ')}</span></td>
+      <td>${last}</td>
+      <td><button onclick="editJob('${j.id}')">불러오기</button>
+          <button onclick="runNow('${j.id}')">지금 실행</button>
+          <button onclick="delJob('${j.id}')">삭제</button></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="4" class="note">아직 저장된 작업이 없습니다.</td></tr>';
+}
+
+async function editJob(id) {
+  const { job } = await api(`/api/jobs/${id}`);
+  $('job-id').value = job.id; $('name').value = job.name;
+  $('adapter').value = job.adapter; $('enabled').checked = job.enabled;
+  $('dryRun').checked = job.dryRun !== false;
+  $('tWeekday').value = job.schedule?.weekday ?? '일';
+  $('timeFrom').value = job.target.timeFrom ?? '11:00';
+  $('durationMin').value = job.target.durationMin ?? 60;
+  setRooms((job.target.rooms ?? []).map(r => (typeof r === 'string' ? { id: r } : r)));
+  for (const [box, sched] of [['tWeeks', job.schedule?.weeksOfMonth ?? []], ['oWeeks', job.watch?.openAt?.weeksOfMonth ?? []]])
+    $(box).querySelectorAll('input').forEach(i => { i.checked = sched.includes(Number(i.value)); });
+  $('oWeekday').value = job.watch?.openAt?.weekday ?? '토';
+  $('oTime').value = job.watch?.openAt?.time ?? '21:00';
+  $('autoBook').checked = job.watch?.autoBook !== false;
+  for (const k of ['name','reason','count','phone','memo']) $('v-' + k).value = job.values?.[k] ?? '';
+  msg('save-msg', `"${job.name}" 을 불러왔습니다.`, 'ok');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+async function runNow(id) { await api(`/api/jobs/${id}/run`, { method: 'POST' }); refresh(); }
+async function delJob(id) {
+  if (!confirm('이 작업을 삭제할까요?')) return;
+  await api(`/api/jobs/${id}`, { method: 'DELETE' });
+  if ($('job-id').value === id) $('job-id').value = '';
+  refresh();
+}
+
+const es = new EventSource('/api/logs');
+es.onmessage = (e) => {
+  const el = $('log');
+  el.textContent += JSON.parse(e.data) + '\n';
+  el.scrollTop = el.scrollHeight;
+};
+
+setRooms(MANNA_ROOMS);
+// 수동 예약의 기본 날짜는 다음 예약 대상일로 채워 둡니다.
+$('m-date').valueAsDate = new Date(Date.now() + 86400000);
+refresh();
+setInterval(refresh, 15000);
+</script>
+</body>
+</html>

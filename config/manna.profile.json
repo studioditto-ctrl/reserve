@@ -1,0 +1,61 @@
+{
+  "//": "만나교회 장소예약 프로필. 브라우저 조사로 확인된 값이 들어 있습니다.",
+  "//경로": "행정 → 장소예약 → 본관 → 3층 → 311~318호",
+  "name": "manna",
+  "baseUrl": "https://manna.or.kr",
+
+  "//dismiss": "공지 팝업의 닫기 버튼. 보일 때만 누르고 없으면 넘어갑니다. 주의: 로그인 폼이 modal_page 안에 들어 있으므로 .modal_page_close 나 .xl-modal-pop__close 를 여기 넣으면 로그인 창이 닫혀 버립니다.",
+  "dismiss": ["#global_search_popup_close", "#popup_close", ".popup-close", ".layer_close"],
+  "closePopupWindows": true,
+
+  "login": {
+    "url": "https://manna.or.kr/%ed%9a%8c%ec%9b%90/%eb%a1%9c%ea%b7%b8%ec%9d%b8/?redirect_to=https://manna.or.kr/",
+    "checkUrl": "https://manna.or.kr/",
+    "//successSelector": "확인됨 — 로그인 상태에서만 '로그아웃' 링크가 보입니다.",
+    "successSelector": "a:has-text(\"로그아웃\")",
+    "//입력칸": "확인됨 — 워드프레스 기반이라 name 이 log/pwd 입니다. 로그인 폼은 모달 안에 있습니다.",
+    "usernameSelector": "#field_user_id",
+    "passwordSelector": "#field_user_pw",
+    "//submitSelector": "페이지에 검색 등 다른 제출 버튼이 있어 로그인 폼 안의 것만 집습니다.",
+    "submitSelector": "form:has(#field_user_pw) input[type=submit]",
+    "//beforeSubmit": "자동 로그인을 켜면 세션이 오래 유지됩니다. 없으면 그냥 넘어갑니다.",
+    "beforeSubmit": [
+      { "action": "check", "selector": "input[name=rememberme]", "optional": true }
+    ],
+    "manual": false
+  },
+
+  "search": {
+    "//urlTemplate": "확인됨. {room} 에 location 코드, {date} 에 YYYY-MM-DD.",
+    "urlTemplate": "https://manna.or.kr/%ed%96%89%ec%a0%95/%ec%9e%a5%ec%86%8c%ec%98%88%ec%95%bd/%eb%93%b1%eb%a1%9d/?location={room}&reserve_date={date}",
+    "//waitFor": "확인됨 — 신청 폼의 예약자명 칸이 뜨면 페이지가 그려진 것입니다.",
+    "waitFor": "#reservation-form-name",
+    "//checkboxTimes": "확인됨 — 시간대가 30분 단위 체크박스입니다. 라벨은 '11시', '11시30분' 형식.",
+    "checkboxTimes": {
+      "selector": "input[name=\"reservation[time]\"]",
+      "labelFrom": "label"
+    },
+    "//unavailableSelector": "확인됨 — 예약 불가는 disabled 속성이 아니라 감싸는 label 의 class 로 표시됩니다. 지난 시각도 이 class 가 붙습니다.",
+    "unavailableSelector": ".jt-reservation-choices__time-disabled",
+    "slotSelector": "input[name=\"reservation[time]\"]"
+  },
+
+  "book": {
+    "//steps": "확인됨 — 체크박스를 고른 뒤 이 순서로 채웁니다. value: 는 어드민 페이지에서 입력한 값입니다. final:true 가 되돌릴 수 없는 신청 버튼입니다.",
+    "steps": [
+      { "action": "fill", "selector": "#reservation-form-name", "valueFrom": "value:name" },
+      { "action": "fill", "selector": "#reservation-form-reason", "valueFrom": "value:reason" },
+      { "action": "fill", "selector": "#reservation-form-count", "valueFrom": "value:count" },
+      { "action": "fill", "selector": "#reservation-form-phone", "valueFrom": "value:phone" },
+      { "action": "fill", "selector": "#reservation-form-memo", "valueFrom": "value:memo", "optional": true },
+      {
+        "//": "페이지에 검색 팝업 등 다른 submit 버튼이 있어, 예약 폼 안의 것만 집습니다.",
+        "action": "click",
+        "selector": "form:has(#reservation-form-name) input[type=submit]",
+        "final": true
+      }
+    ],
+    "//successSelector": "TODO — 신청 완료 화면에서만 보이는 요소. 첫 dry-run 스크린샷으로 확인하면 됩니다.",
+    "successSelector": "TODO-완료-확인-요소"
+  }
+}

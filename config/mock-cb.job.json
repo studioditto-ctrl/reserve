@@ -1,0 +1,12 @@
+{
+  "name": "체크박스 시간표 데모",
+  "adapter": "config/mock-cb.profile.json",
+  "schedule": { "weekday": "일", "weeksOfMonth": [2, 4], "monthsAhead": 1 },
+  "target": {
+    "dates": [],
+    "rooms": ["311", "312", "313", "314", "315", "316", "317", "318"],
+    "timeFrom": "11:00",
+    "durationMin": 60
+  },
+  "watch": { "intervalSec": 5, "autoBook": true, "stopAfterBooking": true, "maxDates": 1 }
+}

@@ -1,0 +1,91 @@
+import { config as loadDotenv } from 'dotenv';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { upcomingDates } from './schedule.js';
+import { loadCredentials } from './store.js';
+import type { Credentials, JobConfig } from './types.js';
+
+loadDotenv({ quiet: true });
+
+const bool = (v: string | undefined, fallback: boolean) =>
+  v === undefined || v === '' ? fallback : /^(1|true|yes|on)$/i.test(v);
+
+export const env = {
+  username: process.env.SITE_USERNAME ?? '',
+  password: process.env.SITE_PASSWORD ?? '',
+  webhookUrl: process.env.WEBHOOK_URL ?? '',
+  telegramToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
+  telegramChatId: process.env.TELEGRAM_CHAT_ID ?? '',
+  /** 기본값은 안전한 쪽(true): 최종 확정 버튼 직전에 멈춥니다. */
+  dryRun: bool(process.env.DRY_RUN, true),
+  headless: bool(process.env.HEADLESS, true),
+};
+
+export function requireCredentials(): Credentials {
+  // 어드민 페이지에서 저장한 값이 있으면 그것을 씁니다.
+  const stored = loadCredentials();
+  if (stored) return stored;
+
+  if (!env.username || !env.password) {
+    throw new Error(
+      '로그인 정보가 없습니다. 어드민 페이지(npm run serve)에서 입력하거나, ' +
+        '.env 에 SITE_USERNAME / SITE_PASSWORD 를 넣거나, `reserve login --manual` 로 직접 로그인하세요.',
+    );
+  }
+  return { username: env.username, password: env.password };
+}
+
+/**
+ * 프로필의 valueFrom 문자열을 실제 값으로 바꿉니다.
+ *   "value:reason" → 작업에 저장된 값 (어드민 페이지에서 입력)
+ *   "env:BOOKING_NAME" → .env 의 환경변수
+ *   그 밖에는 문자열 그대로
+ */
+export function resolveValue(spec: string, values: Record<string, string> = {}): string {
+  if (spec.startsWith('value:')) {
+    const key = spec.slice(6);
+    const v = values[key];
+    if (v === undefined || v === '') throw new Error(`작업에 "${key}" 값이 없습니다. 어드민 페이지에서 채워주세요.`);
+    return v;
+  }
+  if (spec.startsWith('env:')) {
+    const key = spec.slice(4);
+    const v = process.env[key];
+    if (v === undefined) throw new Error(`환경변수 ${key} 가 .env 에 없습니다.`);
+    return v;
+  }
+  return spec;
+}
+
+export function loadJob(path: string): JobConfig {
+  const full = resolve(path);
+  let job: JobConfig;
+  try {
+    job = JSON.parse(readFileSync(full, 'utf8')) as JobConfig;
+  } catch (e) {
+    throw new Error(`작업 파일을 읽지 못했습니다: ${full}\n${(e as Error).message}`);
+  }
+  if (!job.adapter) throw new Error(`${full}: "adapter" 항목이 필요합니다.`);
+  if (!job.target) throw new Error(`${full}: "target" 항목이 필요합니다.`);
+
+  // 반복 일정이 있으면 여기서 날짜를 계산합니다. 감시 중에는 워커가 다시 갱신합니다.
+  if (job.schedule) job.target.dates = upcomingDates(job.schedule);
+
+  // 신청서에 들어갈 개인정보는 저장소에 두지 않고 환경변수로 받을 수 있습니다.
+  // GitHub Actions 에서는 Secrets 를 BOOKING_VALUES 로 넘깁니다.
+  if (process.env.BOOKING_VALUES) {
+    try {
+      const injected = JSON.parse(process.env.BOOKING_VALUES) as Record<string, string>;
+      job.values = { ...job.values, ...injected };
+    } catch {
+      throw new Error('BOOKING_VALUES 가 올바른 JSON 이 아닙니다.');
+    }
+  }
+
+  if (!job.target.dates?.length) {
+    throw new Error(
+      `${full}: 대상 날짜가 없습니다. "target.dates" 에 날짜를 적거나 "schedule" 로 반복 일정을 지정하세요.`,
+    );
+  }
+  return job;
+}

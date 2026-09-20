@@ -1,0 +1,17 @@
+{
+  "name": "맛집예약 데모",
+  "adapter": "mock",
+  "target": {
+    "dates": ["2026-09-05"],
+    "party": 2,
+    "timeFrom": "18:00",
+    "timeTo": "21:00"
+  },
+  "watch": {
+    "intervalSec": 10,
+    "jitterSec": 3,
+    "autoBook": true,
+    "stopAfterBooking": true,
+    "maxConsecutiveErrors": 3
+  }
+}

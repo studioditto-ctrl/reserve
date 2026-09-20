@@ -1,0 +1,4 @@
+# 윈도우 실행 파일은 CRLF 를 유지해야 합니다
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.sh text eol=lf

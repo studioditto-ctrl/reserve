@@ -1,0 +1,60 @@
+{
+  "name": "mock-cb",
+  "baseUrl": "http://localhost:8787",
+  "login": {
+    "url": "http://localhost:8787/login",
+    "checkUrl": "http://localhost:8787/my",
+    "successSelector": "#account",
+    "usernameSelector": "#userid",
+    "passwordSelector": "#userpw",
+    "submitSelector": "form:has(#userpw) input[type=submit]",
+    "beforeSubmit": [
+      {
+        "action": "check",
+        "selector": "input[name=rememberme]",
+        "optional": true
+      }
+    ]
+  },
+  "search": {
+    "urlTemplate": "http://localhost:8787/cbooking?date={date}&room={room}",
+    "waitFor": "#slot-list",
+    "slotSelector": ".cb",
+    "unavailableSelector": ".taken",
+    "checkboxTimes": {
+      "selector": "input[name=\"reservation[time]\"]",
+      "labelFrom": "label"
+    }
+  },
+  "book": {
+    "steps": [
+      {
+        "action": "fill",
+        "selector": "#res-name",
+        "valueFrom": "value:name"
+      },
+      {
+        "action": "fill",
+        "selector": "#res-reason",
+        "valueFrom": "value:reason"
+      },
+      {
+        "action": "fill",
+        "selector": "#res-count",
+        "valueFrom": "value:count"
+      },
+      {
+        "action": "fill",
+        "selector": "#res-phone",
+        "valueFrom": "value:phone"
+      },
+      {
+        "action": "click",
+        "selector": "input[type=submit]",
+        "final": true
+      }
+    ],
+    "successSelector": ".done",
+    "confirmationSelector": ".code"
+  }
+}
