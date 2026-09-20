@@ -12,6 +12,20 @@ config/*.job.json       무엇을 잡고 싶은가 (날짜·시간·인원·감�
 
 ---
 
+## Windows (PowerShell) 쓰신다면
+
+아래 예시들은 줄 끝의 `\` 로 명령을 이어 쓰는 bash 문법입니다.
+PowerShell 에서는 **한 줄로 붙여서** 쓰거나, 줄을 나누려면 `\` 대신 백틱(`` ` ``)을 쓰세요.
+URL 에 `&` 가 들어가므로 **따옴표로 감싸야** 합니다.
+
+```powershell
+git clone -b claude/realtime-booking-service-g6u0gr https://github.com/studioditto-ctrl/reserve.git
+cd reserve
+npm install
+npx playwright install chromium
+Copy-Item .env.example .env
+```
+
 ## 빠른 시작 (가짜 사이트로 5분 만에 체험)
 
 실제 사이트를 건드리지 않고 전 과정을 돌려볼 수 있는 로컬 데모 사이트가 들어 있습니다.
