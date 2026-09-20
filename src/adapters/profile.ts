@@ -439,6 +439,25 @@ export class ProfileAdapter implements SiteAdapter {
         log.warn(`   이동 경위: ${describeNavigation(navigation)}`);
         log.warn(`   페이지 제목: ${title}`);
 
+        // 서버가 실제로 무엇을 보냈는지 같은 쿠키로 한 번 더 받아 봅니다.
+        // 이 요청에는 자바스크립트가 끼어들지 않으므로, 화면이 옮겨졌더라도
+        // 서버의 응답 자체를 볼 수 있습니다. 여기에 신청 폼이 들어 있다면
+        // 서버는 제대로 주었고 화면에서 밀려난 것입니다.
+        const marker = search.waitFor?.replace(/^[#.]/, '') ?? '';
+        try {
+          const raw = await page.context().request.get(url, {
+            ...(search.referer ? { headers: { referer: search.referer } } : {}),
+          });
+          const html = await raw.text();
+          const hasForm = marker !== '' && html.includes(marker);
+          log.warn(
+            `   서버 응답 직접 확인: HTTP ${raw.status()}, ${html.length}자, ` +
+              `"${marker}" 포함 ${hasForm ? '예 ← 서버는 폼을 주었습니다' : '아니오'}`,
+          );
+        } catch (e) {
+          log.warn(`   서버 응답 직접 확인 실패: ${(e as Error).message}`);
+        }
+
         // 첫 실패만 화면과 본문을 남깁니다. 여덟 곳 모두 남기면 산더미가 됩니다.
         if (!this.capturedMiss) {
           this.capturedMiss = true;
