@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Locator, Page } from 'playwright';
+import type { Locator, Page, Response } from 'playwright';
 import { resolveValue } from '../config.js';
 import { log } from '../logger.js';
 import { snapshot } from '../browser.js';
@@ -203,6 +203,26 @@ function must(selector: string | undefined): string {
 }
 
 
+/**
+ * 페이지 이동 결과를 한 줄로 설명합니다.
+ *
+ * 서버가 302 로 돌려보내는 것과, 페이지가 뜬 뒤 자바스크립트가 옮기는 것은
+ * 원인이 완전히 다릅니다. 앞은 권한·기간 같은 서버 규칙이고,
+ * 뒤는 화면에서 벌어지는 일입니다.
+ */
+function describeNavigation(response: Response | null): string {
+  if (!response) return 'HTTP 응답 없음 (자바스크립트로 이동했을 가능성)';
+  const chain: string[] = [];
+  let req = response.request().redirectedFrom();
+  while (req) {
+    chain.unshift(req.url());
+    req = req.redirectedFrom();
+  }
+  const status = `HTTP ${response.status()}`;
+  if (chain.length === 0) return `${status}, 서버 리다이렉트 없음`;
+  return `${status}, 서버가 ${chain.length}번 돌려보냄 — 처음 요청: ${chain[0]}`;
+}
+
 /** 체크박스 시간표의 칸 하나. */
 interface TimeCell {
   index: number;
@@ -393,7 +413,7 @@ export class ProfileAdapter implements SiteAdapter {
     });
     this.visits++;
     log.progress(this.visits, `확인 중 (${this.visits}) — ${date}${room ? ` ${room.label ?? room.id}` : ''}`);
-    await page.goto(url, {
+    const navigation = await page.goto(url, {
       waitUntil: 'domcontentloaded',
       ...(search.referer ? { referer: search.referer } : {}),
     });
@@ -414,7 +434,9 @@ export class ProfileAdapter implements SiteAdapter {
         const landed = page.url();
         const title = await page.title().catch(() => '');
         log.warn(`${where} — 시간표를 찾지 못했습니다 (${search.waitFor}).`);
+        log.warn(`   요청한 주소: ${url}`);
         log.warn(`   도착한 주소: ${landed}`);
+        log.warn(`   이동 경위: ${describeNavigation(navigation)}`);
         log.warn(`   페이지 제목: ${title}`);
 
         // 첫 실패만 화면과 본문을 남깁니다. 여덟 곳 모두 남기면 산더미가 됩니다.
@@ -497,7 +519,7 @@ export class ProfileAdapter implements SiteAdapter {
     const { search } = this.profile;
     this.hookPopups(page);
     const url = fillTemplate(search.urlTemplate, { date, room: room?.id });
-    await page.goto(url, {
+    const navigation = await page.goto(url, {
       waitUntil: 'domcontentloaded',
       ...(search.referer ? { referer: search.referer } : {}),
     });
@@ -508,6 +530,7 @@ export class ProfileAdapter implements SiteAdapter {
       date,
       ...(room ? { room: room.label ?? room.id } : {}),
       landedUrl: page.url(),
+      navigation: describeNavigation(navigation),
     };
 
     if (search.waitFor) {

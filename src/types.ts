@@ -72,6 +72,8 @@ export interface ProbeResult {
   openSlots: number;
   /** 실제로 도착한 주소. 홈으로 튕겼는지 여기서 드러납니다. */
   landedUrl: string;
+  /** 어떻게 그 주소에 도달했는지 (HTTP 상태와 서버 리다이렉트 횟수). */
+  navigation?: string;
 }
 
 export interface BookOptions {
