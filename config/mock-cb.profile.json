@@ -24,22 +24,22 @@
       {
         "action": "fill",
         "selector": "#res-name",
-        "valueFrom": "env:BOOKING_NAME"
+        "valueFrom": "value:name"
       },
       {
         "action": "fill",
         "selector": "#res-reason",
-        "value": "소그룹 모임"
+        "valueFrom": "value:reason"
       },
       {
         "action": "fill",
         "selector": "#res-count",
-        "value": "8"
+        "valueFrom": "value:count"
       },
       {
         "action": "fill",
         "selector": "#res-phone",
-        "valueFrom": "env:BOOKING_PHONE"
+        "valueFrom": "value:phone"
       },
       {
         "action": "click",

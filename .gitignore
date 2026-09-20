@@ -7,3 +7,6 @@ node_modules/
 screenshots/
 *.log
 dist/
+
+# 어드민 페이지가 저장하는 개인정보 (아이디·비밀번호·연락처)
+data/

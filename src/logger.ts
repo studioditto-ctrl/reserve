@@ -10,8 +10,21 @@ function stamp(): string {
   return new Date().toLocaleTimeString('ko-KR', { hour12: false });
 }
 
+/** 어드민 페이지 등 화면 밖으로도 로그를 흘려보내기 위한 통로. */
+type Sink = (line: string) => void;
+const sinks: Sink[] = [];
+
+export function addLogSink(fn: Sink): () => void {
+  sinks.push(fn);
+  return () => {
+    const i = sinks.indexOf(fn);
+    if (i >= 0) sinks.splice(i, 1);
+  };
+}
+
 function line(tag: string, color: keyof typeof COLORS, msg: string) {
   console.log(`${paint('gray', stamp())} ${paint(color, tag)} ${msg}`);
+  for (const sink of sinks) sink(`${stamp()} ${tag} ${msg}`);
 }
 
 export const log = {

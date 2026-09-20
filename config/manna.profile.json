@@ -36,13 +36,13 @@
   },
 
   "book": {
-    "//steps": "확인됨 — 체크박스를 고른 뒤 이 순서로 채웁니다. final:true 가 되돌릴 수 없는 신청 버튼입니다.",
+    "//steps": "확인됨 — 체크박스를 고른 뒤 이 순서로 채웁니다. value: 는 어드민 페이지에서 입력한 값입니다. final:true 가 되돌릴 수 없는 신청 버튼입니다.",
     "steps": [
-      { "action": "fill", "selector": "#reservation-form-name", "valueFrom": "env:BOOKING_NAME" },
-      { "action": "fill", "selector": "#reservation-form-reason", "valueFrom": "env:BOOKING_REASON" },
-      { "action": "fill", "selector": "#reservation-form-count", "valueFrom": "env:BOOKING_COUNT" },
-      { "action": "fill", "selector": "#reservation-form-phone", "valueFrom": "env:BOOKING_PHONE" },
-      { "action": "fill", "selector": "#reservation-form-memo", "valueFrom": "env:BOOKING_MEMO", "optional": true },
+      { "action": "fill", "selector": "#reservation-form-name", "valueFrom": "value:name" },
+      { "action": "fill", "selector": "#reservation-form-reason", "valueFrom": "value:reason" },
+      { "action": "fill", "selector": "#reservation-form-count", "valueFrom": "value:count" },
+      { "action": "fill", "selector": "#reservation-form-phone", "valueFrom": "value:phone" },
+      { "action": "fill", "selector": "#reservation-form-memo", "valueFrom": "value:memo", "optional": true },
       {
         "//": "페이지에 검색 팝업 등 다른 submit 버튼이 있어, 예약 폼 안의 것만 집습니다.",
         "action": "click",

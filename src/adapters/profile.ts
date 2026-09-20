@@ -6,7 +6,7 @@ import { resolveValue } from '../config.js';
 import { log } from '../logger.js';
 import { snapshot } from '../browser.js';
 import { minutesToHHMM, parseTimeLabels } from '../timelabel.js';
-import type { BookingResult, Credentials, JobTarget, RoomRef, SiteAdapter, Slot } from '../types.js';
+import type { BookOptions, BookingResult, Credentials, JobTarget, RoomRef, SiteAdapter, Slot } from '../types.js';
 
 /** 예약 흐름의 한 단계. 사이트마다 다른 클릭 순서를 JSON 으로 기술합니다. */
 export interface Step {
@@ -124,7 +124,7 @@ async function textOf(scope: Locator, selector?: string): Promise<string> {
 async function runSteps(
   page: Page,
   steps: Step[],
-  opts: { dryRun: boolean },
+  opts: BookOptions,
 ): Promise<{ stoppedBeforeConfirm: boolean }> {
   for (const step of steps) {
     if (step.final && opts.dryRun) {
@@ -132,7 +132,7 @@ async function runSteps(
       return { stoppedBeforeConfirm: true };
     }
     try {
-      await runStep(page, step);
+      await runStep(page, step, opts.values);
     } catch (e) {
       if (step.optional) {
         log.warn(`선택 단계 건너뜀: ${step.action} ${step.selector ?? ''}`);
@@ -144,8 +144,8 @@ async function runSteps(
   return { stoppedBeforeConfirm: false };
 }
 
-async function runStep(page: Page, step: Step): Promise<void> {
-  const value = step.valueFrom ? resolveValue(step.valueFrom) : step.value;
+async function runStep(page: Page, step: Step, values?: Record<string, string>): Promise<void> {
+  const value = step.valueFrom ? resolveValue(step.valueFrom, values) : step.value;
   switch (step.action) {
     case 'goto':
       if (!value) throw new Error('goto 에는 value(URL)가 필요합니다.');
@@ -436,7 +436,7 @@ export class ProfileAdapter implements SiteAdapter {
     return slots;
   }
 
-  async book(page: Page, slot: Slot, opts: { dryRun: boolean }): Promise<BookingResult> {
+  async book(page: Page, slot: Slot, opts: BookOptions): Promise<BookingResult> {
     const { search, book } = this.profile;
 
     // 슬롯 목록을 다시 띄운 뒤, 인덱스가 아니라 라벨로 같은 자리를 다시 찾습니다.

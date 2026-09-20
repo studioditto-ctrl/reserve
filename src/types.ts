@@ -62,6 +62,13 @@ export interface RoomRef {
   label?: string;
 }
 
+export interface BookOptions {
+  /** true 면 되돌릴 수 없는 마지막 단계 직전에 멈춥니다. */
+  dryRun: boolean;
+  /** 신청 폼에 넣을 값들. 프로필의 valueFrom: "value:이름" 으로 참조됩니다. */
+  values?: Record<string, string>;
+}
+
 export interface Credentials {
   username: string;
   password: string;
@@ -89,7 +96,7 @@ export interface SiteAdapter {
   /** 조건에 맞는 빈자리 목록을 반환. 없으면 빈 배열. */
   findSlots(page: Page, target: JobTarget): Promise<Slot[]>;
   /** 슬롯 하나를 실제로 예약. dryRun 이면 최종 확정 직전에 멈춥니다. */
-  book(page: Page, slot: Slot, opts: { dryRun: boolean }): Promise<BookingResult>;
+  book(page: Page, slot: Slot, opts: BookOptions): Promise<BookingResult>;
 }
 
 /** config/*.job.json 의 형태. */
@@ -98,6 +105,12 @@ export interface JobConfig {
   /** 사용할 어댑터: 프로필 JSON 경로, 또는 내장 어댑터 이름("mock"). */
   adapter: string;
   target: JobTarget;
+  /**
+   * 신청 폼에 넣을 값들 (예약자명·사용목적·인원·연락처 등).
+   * 프로필의 valueFrom: "value:reason" 으로 참조합니다.
+   * 개인정보가 들어가므로 이 값이 담긴 작업 파일은 커밋하지 마세요.
+   */
+  values?: Record<string, string>;
   /**
    * "매월 둘째주·넷째주 토요일" 같은 반복 일정.
    * 지정하면 target.dates 를 매 회차마다 이 일정으로 다시 계산합니다.

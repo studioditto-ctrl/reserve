@@ -14,7 +14,8 @@
     "watch": "tsx src/cli.ts watch",
     "mock": "tsx src/mock/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "serve": "tsx src/cli.ts serve"
   },
   "dependencies": {
     "commander": "^14.0.2",

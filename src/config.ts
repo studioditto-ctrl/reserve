@@ -2,6 +2,7 @@ import { config as loadDotenv } from 'dotenv';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { upcomingDates } from './schedule.js';
+import { loadCredentials } from './store.js';
 import type { Credentials, JobConfig } from './types.js';
 
 loadDotenv({ quiet: true });
@@ -21,17 +22,32 @@ export const env = {
 };
 
 export function requireCredentials(): Credentials {
+  // 어드민 페이지에서 저장한 값이 있으면 그것을 씁니다.
+  const stored = loadCredentials();
+  if (stored) return stored;
+
   if (!env.username || !env.password) {
     throw new Error(
-      '.env 에 SITE_USERNAME / SITE_PASSWORD 가 없습니다. ' +
-        '.env.example 을 .env 로 복사해서 채우거나, `reserve login --manual` 로 직접 로그인하세요.',
+      '로그인 정보가 없습니다. 어드민 페이지(npm run serve)에서 입력하거나, ' +
+        '.env 에 SITE_USERNAME / SITE_PASSWORD 를 넣거나, `reserve login --manual` 로 직접 로그인하세요.',
     );
   }
   return { username: env.username, password: env.password };
 }
 
-/** 프로필의 valueFrom 문자열을 실제 값으로 바꿉니다. "env:BOOKING_NAME" → 홍길동 */
-export function resolveValue(spec: string): string {
+/**
+ * 프로필의 valueFrom 문자열을 실제 값으로 바꿉니다.
+ *   "value:reason" → 작업에 저장된 값 (어드민 페이지에서 입력)
+ *   "env:BOOKING_NAME" → .env 의 환경변수
+ *   그 밖에는 문자열 그대로
+ */
+export function resolveValue(spec: string, values: Record<string, string> = {}): string {
+  if (spec.startsWith('value:')) {
+    const key = spec.slice(6);
+    const v = values[key];
+    if (v === undefined || v === '') throw new Error(`작업에 "${key}" 값이 없습니다. 어드민 페이지에서 채워주세요.`);
+    return v;
+  }
   if (spec.startsWith('env:')) {
     const key = spec.slice(4);
     const v = process.env[key];

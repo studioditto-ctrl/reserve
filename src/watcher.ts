@@ -176,7 +176,7 @@ export async function watch(deps: WatchDeps): Promise<WatchResult> {
               attempted.add(slot.id);
               log.info(`예약 시도: ${slot.label}${dryRun ? ' (dry-run)' : ''}`);
 
-              const result = await adapter.book(page, slot, { dryRun });
+              const result = await adapter.book(page, slot, { dryRun, values: job.values });
               await deps.saveSession().catch(() => {});
 
               if (result.ok) {
