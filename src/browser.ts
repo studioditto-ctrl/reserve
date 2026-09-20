@@ -60,6 +60,12 @@ export async function openSession(
     locale: 'ko-KR',
     timezoneId: 'Asia/Seoul',
     viewport: { width: 1440, height: 900 },
+    // 헤드리스 크로미움의 기본 UA 에는 "HeadlessChrome" 이 들어갑니다.
+    // 이걸 보고 자동화로 판단해 홈으로 돌려보내는 사이트가 있어 일반 크롬으로 맞춥니다.
+    userAgent:
+      process.env.USER_AGENT ??
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+        '(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
   });
   context.setDefaultTimeout(15_000);
   const page = await context.newPage();

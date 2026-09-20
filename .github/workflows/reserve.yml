@@ -21,11 +21,21 @@ on:
         default: check
         options:
           - check      # 지금 빈자리만 조회
+          - probe      # 어느 날짜에 시간표가 뜨는지 훑어보기 (예약 안 함)
           - dryrun     # 신청 직전까지 예행연습
           - book       # 지정한 날짜를 지금 예약
           - watch      # 오픈까지 기다렸다 예약 (자동과 동일)
       date:
-        description: '예약할 날짜 (YYYY-MM-DD). book 모드에서만 씁니다'
+        description: '날짜 (YYYY-MM-DD). book 은 예약할 날, probe 는 훑기 시작할 날'
+        type: string
+        required: false
+      days:
+        description: '며칠치를 훑을지. probe 모드에서만 씁니다'
+        type: string
+        required: false
+        default: '14'
+      room:
+        description: '호실 코드. probe 모드에서 한 곳만 볼 때 씁니다'
         type: string
         required: false
       time:
@@ -109,6 +119,13 @@ jobs:
           case "$MODE" in
             check)
               npx tsx src/cli.ts check "$JOB"
+              ;;
+            probe)
+              ARGS="--days ${{ inputs.days || '14' }}"
+              [ -n "${{ inputs.date }}" ] && ARGS="$ARGS --from ${{ inputs.date }}"
+              [ -n "${{ inputs.room }}" ] && ARGS="$ARGS --room ${{ inputs.room }}"
+              # shellcheck disable=SC2086
+              npx tsx src/cli.ts probe "$JOB" $ARGS
               ;;
             dryrun)
               npx tsx src/cli.ts watch "$JOB" --auto-book --interval 5

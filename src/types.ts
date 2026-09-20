@@ -62,6 +62,18 @@ export interface RoomRef {
   label?: string;
 }
 
+/** 어떤 날짜에 시간표가 아예 뜨는지 확인한 결과. */
+export interface ProbeResult {
+  date: string;
+  room?: string;
+  /** 시간표(또는 신청 폼)가 화면에 나타났는가. */
+  formFound: boolean;
+  /** 나타났다면 고를 수 있는 칸이 몇 개인가. */
+  openSlots: number;
+  /** 실제로 도착한 주소. 홈으로 튕겼는지 여기서 드러납니다. */
+  landedUrl: string;
+}
+
 export interface BookOptions {
   /** true 면 되돌릴 수 없는 마지막 단계 직전에 멈춥니다. */
   dryRun: boolean;
@@ -97,6 +109,11 @@ export interface SiteAdapter {
   findSlots(page: Page, target: JobTarget): Promise<Slot[]>;
   /** 슬롯 하나를 실제로 예약. dryRun 이면 최종 확정 직전에 멈춥니다. */
   book(page: Page, slot: Slot, opts: BookOptions): Promise<BookingResult>;
+  /**
+   * 날짜 하나를 찔러 보고 시간표가 뜨는지만 확인합니다 (예약하지 않음).
+   * "어느 날짜가 예약 가능한가" 를 알아낼 때 씁니다.
+   */
+  probe?(page: Page, date: string, room?: RoomRef): Promise<ProbeResult>;
 }
 
 /** config/*.job.json 의 형태. */

@@ -2,9 +2,9 @@ import { loadAdapter } from './adapters/registry.js';
 import { openSession, snapshot, type Session } from './browser.js';
 import { env, requireCredentials } from './config.js';
 import { log } from './logger.js';
-import { upcomingDates } from './schedule.js';
+import { toDateString, upcomingDates } from './schedule.js';
 import { watch, type WatchResult } from './watcher.js';
-import type { BookingResult, JobConfig, RoomRef, SiteAdapter, Slot } from './types.js';
+import type { BookingResult, JobConfig, ProbeResult, RoomRef, SiteAdapter, Slot } from './types.js';
 
 /**
  * 어드민 페이지와 스케줄러가 함께 쓰는 동작들.
@@ -146,6 +146,44 @@ export async function runBookFirst(job: JobConfig, dryRun: boolean): Promise<Boo
   } catch (e) {
     const shot = await snapshot(session.page, 'book-error').catch(() => undefined);
     return { ok: false, message: `실패: ${(e as Error).message}`, ...(shot ? { screenshot: shot } : {}) };
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * 날짜를 하루씩 넘기며 시간표가 뜨는 날을 찾습니다. 예약은 하지 않습니다.
+ * "어느 날짜가 예약 가능한가" 를 모를 때 쓰는 탐색 도구입니다.
+ */
+export async function runProbe(
+  job: JobConfig,
+  opts: { from?: string; days: number; room?: string },
+): Promise<ProbeResult[]> {
+  const { adapter, session } = await open(job);
+  try {
+    if (!adapter.probe) throw new Error('이 어댑터는 날짜 탐색을 지원하지 않습니다.');
+    if (!(await adapter.isLoggedIn(session.page))) {
+      await adapter.login(session.page, requireCredentials(), { manual: false });
+      await session.save();
+    }
+
+    // 호실을 하나만 골라 돕니다. 날짜가 열렸는지만 보면 되므로 여덟 곳을 돌 필요가 없습니다.
+    const first = job.target.rooms?.[0];
+    const asRef = (r: string | RoomRef | undefined): RoomRef | undefined =>
+      r === undefined ? undefined : typeof r === 'string' ? { id: r } : r;
+    const room = opts.room ? { id: opts.room } : asRef(first);
+
+    const start = opts.from ? new Date(`${opts.from}T00:00:00`) : new Date();
+    const results: ProbeResult[] = [];
+    for (let i = 0; i < opts.days; i++) {
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      const date = toDateString(d);
+      const r = await adapter.probe(session.page, date, room);
+      const mark = r.formFound ? `시간표 있음 · 선택 가능 ${r.openSlots}칸` : '시간표 없음';
+      log.info(`  ${date} (${'일월화수목금토'[d.getDay()]})  ${mark}`);
+      results.push(r);
+    }
+    return results;
   } finally {
     await session.close();
   }

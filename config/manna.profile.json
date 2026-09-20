@@ -26,6 +26,8 @@
   "search": {
     "//urlTemplate": "확인됨. {room} 에 location 코드, {date} 에 YYYY-MM-DD.",
     "urlTemplate": "https://manna.or.kr/%ed%96%89%ec%a0%95/%ec%9e%a5%ec%86%8c%ec%98%88%ec%95%bd/%eb%93%b1%eb%a1%9d/?location={room}&reserve_date={date}",
+    "//referer": "장소예약 목록을 거쳐 들어온 것처럼 보이게 합니다. 목록을 거치지 않으면 홈으로 돌려보내는 사이트가 있습니다.",
+    "referer": "https://manna.or.kr/%ed%96%89%ec%a0%95/%ec%9e%a5%ec%86%8c%ec%98%88%ec%95%bd/",
     "//waitFor": "확인됨 — 신청 폼의 예약자명 칸이 뜨면 페이지가 그려진 것입니다.",
     "waitFor": "#reservation-form-name",
     "//waitForMs": "자리가 없을 때 이만큼 기다렸다 넘어갑니다. 호실 8곳을 도니 한 바퀴가 최대 이 값의 8배입니다. 오픈 순간에 느려지지 않도록 짧게 잡았습니다.",
