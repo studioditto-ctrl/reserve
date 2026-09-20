@@ -220,9 +220,10 @@ program
   .command('serve')
   .description('어드민 페이지를 열고, 저장된 작업을 오픈 시각에 자동으로 실행합니다.')
   .option('-p, --port <port>', '포트 번호', '4100')
-  .action(async (opts: { port: string }) => {
+  .option('--no-open', '브라우저를 자동으로 열지 않습니다')
+  .action(async (opts: { port: string; open: boolean }) => {
     const scheduler = new Scheduler();
-    startAdminServer(Number(opts.port), scheduler);
+    startAdminServer(Number(opts.port), scheduler, { open: opts.open });
     scheduler.start();
     log.info('종료하려면 Ctrl+C. 이 창을 켜 둬야 오픈 시각에 자동 예약됩니다.');
     // 스케줄러가 계속 돌아야 하므로 프로세스를 붙잡아 둡니다.

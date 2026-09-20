@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,7 +52,30 @@ function preview(job: SavedJob) {
   return { dates, nextOpen: open ? formatKST(open) : null };
 }
 
-export function startAdminServer(port: number, scheduler: Scheduler): void {
+/** 기본 브라우저로 화면을 띄웁니다. 실패해도 서버는 그대로 돕니다. */
+export function openInBrowser(url: string): void {
+  const [cmd, args] =
+    process.platform === 'win32' ? ['cmd', ['/c', 'start', '""', url]]
+    : process.platform === 'darwin' ? ['open', [url]]
+    : ['xdg-open', [url]];
+  try {
+    const child = spawn(cmd, args, { detached: true, stdio: 'ignore' });
+    // spawn 실패는 예외가 아니라 error 이벤트로 옵니다. 받아 두지 않으면 앱이 죽습니다.
+    child.on('error', () => log.warn(`브라우저를 자동으로 열지 못했습니다. 직접 ${url} 로 접속하세요.`));
+    child.unref();
+  } catch {
+    log.warn(`브라우저를 자동으로 열지 못했습니다. 직접 ${url} 로 접속하세요.`);
+  }
+}
+
+export interface ServeOptions {
+  /** 이 포트가 쓰이고 있으면 다음 번호로 넘어갑니다. */
+  port: number;
+  /** 서버가 뜨면 브라우저를 자동으로 엽니다. */
+  open?: boolean;
+}
+
+export function startAdminServer(port: number, scheduler: Scheduler, opts: { open?: boolean } = {}): void {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://localhost:${port}`);
     const path = url.pathname;
@@ -177,8 +201,24 @@ export function startAdminServer(port: number, scheduler: Scheduler): void {
     }
   });
 
+  // 포트가 이미 쓰이고 있으면 다음 번호로 넘어갑니다.
+  // 앱을 두 번 켰을 때 오류로 죽는 것보다 낫습니다.
+  let attempt = port;
+  server.on('error', (e: NodeJS.ErrnoException) => {
+    if (e.code === 'EADDRINUSE' && attempt < port + 10) {
+      log.warn(`포트 ${attempt} 이(가) 사용 중이라 ${attempt + 1} 로 넘어갑니다.`);
+      attempt++;
+      server.listen(attempt, '127.0.0.1');
+      return;
+    }
+    log.error(`서버를 시작하지 못했습니다: ${e.message}`);
+    process.exit(1);
+  });
+
   // 바깥에서 접근하지 못하도록 이 컴퓨터에만 엽니다.
-  server.listen(port, '127.0.0.1', () => {
-    log.ok(`어드민 페이지: http://localhost:${port}`);
+  server.listen(attempt, '127.0.0.1', () => {
+    const url = `http://localhost:${attempt}`;
+    log.ok(`어드민 페이지: ${url}`);
+    if (opts.open) openInBrowser(url);
   });
 }
