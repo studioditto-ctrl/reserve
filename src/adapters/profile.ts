@@ -57,6 +57,14 @@ export interface SiteProfile {
     urlTemplate: string;
     /** 목록이 그려질 때까지 기다릴 셀렉터. */
     waitFor?: string;
+    /**
+     * waitFor 를 기다리는 시간(밀리초). 기본 10000.
+     *
+     * 이 시간은 "자리가 없다" 를 확인하는 데 드는 비용이기도 합니다.
+     * 호실을 여러 곳 도는 경우 호실 수만큼 곱해지므로, 오픈 순간에
+     * 한 바퀴 도는 시간을 좌우합니다. 사이트가 빠르면 줄이세요.
+     */
+    waitForMs?: number;
     /** 슬롯 하나에 대응하는 요소들. */
     slotSelector: string;
     /** 슬롯 요소 안에서 값을 뽑을 상대 셀렉터들. 없으면 요소 전체 텍스트를 씁니다. */
@@ -203,6 +211,8 @@ export class ProfileAdapter implements SiteAdapter {
   constructor(private readonly profile: SiteProfile) {}
 
   private popupHookInstalled = false;
+  /** 몇 번째 페이지를 열고 있는지. 진행 표시에만 씁니다. */
+  private visits = 0;
 
   get name(): string {
     return this.profile.name;
@@ -372,6 +382,8 @@ export class ProfileAdapter implements SiteAdapter {
       party: target.party,
       time: target.timeFrom,
     });
+    this.visits++;
+    log.progress(this.visits, `확인 중 (${this.visits}) — ${date}${room ? ` ${room.label ?? room.id}` : ''}`);
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await this.dismissPopups(page);
     if (search.preSteps?.length) await runSteps(page, search.preSteps, { dryRun: false });
@@ -379,11 +391,14 @@ export class ProfileAdapter implements SiteAdapter {
       const appeared = await page
         .locator(search.waitFor)
         .first()
-        .waitFor({ state: 'visible', timeout: 10_000 })
+        .waitFor({ state: 'visible', timeout: search.waitForMs ?? 10_000 })
         .then(() => true)
         .catch(() => false);
       // 목록 컨테이너가 아예 안 뜨면 그 날짜는 자리가 없는 것으로 봅니다.
-      if (!appeared) return [];
+      if (!appeared) {
+        log.warn(`${date}${room ? ` ${room.label ?? room.id}` : ''} — 시간표를 찾지 못했습니다 (${search.waitFor}).`);
+        return [];
+      }
     }
 
     // ── 체크박스 시간표: 필요한 칸을 모두 잡을 수 있을 때만 후보로 내놓습니다 ──

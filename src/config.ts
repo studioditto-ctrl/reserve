@@ -69,7 +69,13 @@ export function loadJob(path: string): JobConfig {
   if (!job.target) throw new Error(`${full}: "target" 항목이 필요합니다.`);
 
   // 반복 일정이 있으면 여기서 날짜를 계산합니다. 감시 중에는 워커가 다시 갱신합니다.
-  if (job.schedule) job.target.dates = upcomingDates(job.schedule);
+  // maxDates 는 여기서도 적용해야 합니다. 그러지 않으면 check 가 먼 날짜까지
+  // 전부 훑어 호실 수만큼 곱해진 횟수로 사이트를 두드립니다.
+  if (job.schedule) {
+    const all = upcomingDates(job.schedule);
+    const max = job.watch?.maxDates;
+    job.target.dates = max && max > 0 ? all.slice(0, max) : all;
+  }
 
   // 신청서에 들어갈 개인정보는 저장소에 두지 않고 환경변수로 받을 수 있습니다.
   // GitHub Actions 에서는 Secrets 를 BOOKING_VALUES 로 넘깁니다.
