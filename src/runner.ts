@@ -2,6 +2,7 @@ import { log } from './logger.js';
 import { nextOpenAt, formatKST } from './schedule.js';
 import { runWatch } from './operations.js';
 import { getJob, listJobs, recordRun, type SavedJob } from './store.js';
+import type { JobConfig } from './types.js';
 
 /**
  * 저장된 작업들을 오픈 시각에 맞춰 알아서 실행합니다.
@@ -75,16 +76,20 @@ export class Scheduler {
     }
   }
 
-  /** 작업 하나를 지금 실행합니다. 어드민의 "지금 실행" 도 이 경로를 씁니다. */
-  async launch(id: string, override?: { dryRun?: boolean }): Promise<void> {
+  /**
+   * 작업 하나를 지금 실행합니다. 어드민의 "지금 실행" 과 수동 모드의
+   * "빈자리 날 때까지 대기" 가 모두 이 경로를 씁니다.
+   */
+  async launch(id: string, override?: { dryRun?: boolean; job?: JobConfig; label?: string }): Promise<void> {
     if (this.running.has(id)) return;
-    const job = getJob(id);
-    if (!job) return;
+    const saved = getJob(id);
+    if (!saved) return;
+    const job = override?.job ?? saved;
 
     this.running.add(id);
     try {
       // 저장된 작업의 설정을 따릅니다 (어드민에서 켜고 끕니다).
-      const dryRun = override?.dryRun ?? job.dryRun !== false;
+      const dryRun = override?.dryRun ?? saved.dryRun !== false;
       const result = await runWatch(job, dryRun);
       const ok = result.reason === 'booked';
       const message =

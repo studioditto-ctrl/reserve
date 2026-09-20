@@ -9,6 +9,7 @@ import { loadAdapter } from './adapters/registry.js';
 import { log } from './logger.js';
 import { notify } from './notify/index.js';
 import { watch } from './watcher.js';
+import { manualJob, runBookFirst, runCheck } from './operations.js';
 import { startAdminServer } from './admin/server.js';
 import { Scheduler } from './runner.js';
 import { formatReport, inspectPage } from './inspect.js';
@@ -181,6 +182,38 @@ program
     } finally {
       await session.close();
     }
+  });
+
+program
+  .command('book-now')
+  .description('날짜와 시각을 직접 지정해 지금 예약합니다 (반복 일정과 무관한 수동 모드).')
+  .argument('<date>', '예약할 날짜. YYYY-MM-DD')
+  .argument('[job]', '작업 파일 경로', DEFAULT_JOB)
+  .option('-t, --time <hh:mm>', '시작 시각. 없으면 작업 설정을 씁니다.')
+  .option('-d, --duration <min>', '길이(분). 없으면 작업 설정을 씁니다.')
+  .option('--check', '예약하지 않고 조회만 합니다')
+  .option('--confirm', '최종 신청 버튼까지 누릅니다 (진짜 예약됩니다). 기본은 dry-run.')
+  .action(async (
+    date: string,
+    jobPath: string,
+    opts: { time?: string; duration?: string; check?: boolean; confirm?: boolean },
+  ) => {
+    const base = loadJob(jobPath);
+    const req = {
+      date,
+      timeFrom: opts.time ?? base.target.timeFrom ?? '00:00',
+      ...(opts.duration ? { durationMin: Number(opts.duration) } : {}),
+    };
+    const job = manualJob(base, req);
+    log.info(`수동 모드 — ${date} ${req.timeFrom}${req.durationMin ? ` (${req.durationMin}분)` : ''}`);
+
+    if (opts.check) {
+      printSlots((await runCheck(job)).slots);
+      return;
+    }
+    const result = await runBookFirst(job, !opts.confirm);
+    log[result.ok ? 'ok' : 'error'](result.message);
+    if (!result.ok) process.exitCode = 1;
   });
 
 program

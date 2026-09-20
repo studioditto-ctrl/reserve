@@ -45,6 +45,14 @@ th{color:var(--muted);font-weight:500}
 .pill.run{color:var(--accent);border-color:var(--accent)}
 details summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:8px}
 img.shot{max-width:100%;border:1px solid var(--line);border-radius:6px;margin-top:10px}
+table.rooms{margin-top:6px}
+table.rooms td{padding:4px 6px}
+table.rooms input[type=text]{padding:5px 8px;font-size:13px}
+table.rooms input[type=checkbox]{width:auto}
+table.rooms button{padding:3px 8px;font-size:13px}
+td.rank{color:var(--accent);font-weight:600;text-align:center}
+td.rank.off{color:var(--muted);font-weight:400}
+tr.unchecked td:nth-child(3),tr.unchecked td:nth-child(4){opacity:.45}
 </style>
 </head>
 <body>
@@ -94,9 +102,14 @@ img.shot{max-width:100%;border:1px solid var(--line);border-radius:6px;margin-to
   <label>매월 몇째 주</label>
   <div class="weeks" id="tWeeks"></div>
 
-  <label>호실 (위에서부터 확인해 먼저 비어 있는 곳 하나를 잡습니다)</label>
-  <textarea id="rooms"></textarea>
-  <p class="note"><code>코드 = 이름</code> 형식. 순서를 바꾸면 먼저 잡을 방이 바뀝니다. 필요 없는 방은 지우세요.</p>
+  <label>호실 — 체크한 것만, <b>위에서부터 순서대로</b> 시도해 먼저 비어 있는 곳 하나를 잡습니다</label>
+  <table class="rooms"><thead><tr><th style="width:38px"></th><th style="width:46px">순위</th><th style="width:76px">코드</th><th>이름</th><th style="width:108px"></th></tr></thead><tbody id="roomBody"></tbody></table>
+  <div class="btns">
+    <button onclick="addRoom()">호실 추가</button>
+    <button onclick="setRooms(MANNA_ROOMS)">만나 본관 3층 불러오기</button>
+    <button onclick="allRooms(true)">전체 체크</button>
+    <button onclick="allRooms(false)">전체 해제</button>
+  </div>
 </section>
 
 <section>
@@ -161,26 +174,76 @@ img.shot{max-width:100%;border:1px solid var(--line);border-radius:6px;margin-to
 </section>
 
 <section>
-  <h2>6. 저장된 작업</h2>
+  <h2>6. 수동 예약 (날짜·시각 직접 지정)</h2>
+  <p class="note">반복 일정·오픈 시각과 무관하게, 지정한 날짜를 <b>지금</b> 처리합니다. 호실은 위에서 체크한 순서를 그대로 씁니다. 먼저 작업을 저장하세요.</p>
+  <div class="row">
+    <div><label>날짜</label><input id="m-date" type="date"></div>
+    <div><label>시작 시각</label><input id="m-time" type="time" step="1800" value="11:00"></div>
+    <div><label>길이 (분)</label><input id="m-duration" type="number" value="60" min="30" step="30"></div>
+  </div>
+  <div class="chk"><input type="checkbox" id="m-dry" checked><span><b>예행연습 모드</b> — 끄면 실제로 예약됩니다</span></div>
+  <div class="btns">
+    <button onclick="mCheck()">지금 조회</button>
+    <button class="primary" onclick="mBook()">지금 예약</button>
+    <button onclick="mWatch()">빈자리 날 때까지 대기</button>
+  </div>
+  <div id="m-msg"></div>
+  <div id="m-shot"></div>
+</section>
+
+<section>
+  <h2>7. 저장된 작업</h2>
   <table id="jobs"><tbody></tbody></table>
 </section>
 
 <section>
-  <h2>7. 실시간 로그</h2>
+  <h2>8. 실시간 로그</h2>
   <div id="log"></div>
 </section>
 </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const MANNA_ROOMS = `29 = 311호 (11~30인)
-28 = 312호 (6~10인)
-27 = 313호 (1~5인)
-26 = 314호 (1~5인)
-25 = 315호 (1~5인)
-24 = 316호 (1~5인)
-23 = 317호 (1~5인)
-22 = 318호 (1~5인)`;
+const MANNA_ROOMS = [
+  { id: '29', label: '311호 (11~30인)' }, { id: '28', label: '312호 (6~10인)' },
+  { id: '27', label: '313호 (1~5인)' },  { id: '26', label: '314호 (1~5인)' },
+  { id: '25', label: '315호 (1~5인)' },  { id: '24', label: '316호 (1~5인)' },
+  { id: '23', label: '317호 (1~5인)' },  { id: '22', label: '318호 (1~5인)' },
+];
+
+/** 호실 목록. 표시 순서가 곧 우선순위이고, 체크한 것만 실제로 시도합니다. */
+let rooms = [];
+const esc = (v) => String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+
+function setRooms(list, allOn = true) {
+  rooms = list.map((r) => ({ id: r.id, label: r.label ?? r.id, selected: r.selected ?? allOn }));
+  renderRooms();
+}
+function renderRooms() {
+  let rank = 0;
+  $('roomBody').innerHTML = rooms.map((r, i) => {
+    const n = r.selected ? ++rank : 0;
+    return `<tr class="${r.selected ? '' : 'unchecked'}">
+      <td><input type="checkbox" ${r.selected ? 'checked' : ''} onchange="toggleRoom(${i})"></td>
+      <td class="rank ${n ? '' : 'off'}">${n || '—'}</td>
+      <td><input type="text" value="${esc(r.id)}" onchange="rooms[${i}].id=this.value"></td>
+      <td><input type="text" value="${esc(r.label)}" onchange="rooms[${i}].label=this.value"></td>
+      <td><button onclick="moveRoom(${i},-1)" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button onclick="moveRoom(${i},1)" ${i === rooms.length - 1 ? 'disabled' : ''}>↓</button>
+          <button onclick="rmRoom(${i})">×</button></td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="note">호실을 추가하세요.</td></tr>';
+}
+function toggleRoom(i) { rooms[i].selected = !rooms[i].selected; renderRooms(); }
+function moveRoom(i, d) {
+  const j = i + d;
+  if (j < 0 || j >= rooms.length) return;
+  [rooms[i], rooms[j]] = [rooms[j], rooms[i]];
+  renderRooms();
+}
+function rmRoom(i) { rooms.splice(i, 1); renderRooms(); }
+function addRoom() { rooms.push({ id: '', label: '', selected: true }); renderRooms(); }
+function allRooms(on) { rooms.forEach((r) => (r.selected = on)); renderRooms(); }
+function selectedRooms() { return rooms.filter((r) => r.selected && r.id).map(({ id, label }) => ({ id, label })); }
 
 for (const [box, checked] of [['tWeeks', [2, 4]], ['oWeeks', [1, 3]]]) {
   $(box).innerHTML = [1,2,3,4,5].map(n =>
@@ -193,13 +256,6 @@ function msg(id, text, kind = '') {
   $(id).textContent = text;
 }
 
-function parseRooms(text) {
-  return text.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
-    const [id, ...rest] = l.split('=');
-    return { id: id.trim(), label: (rest.join('=') || id).trim() };
-  }).filter(r => r.id);
-}
-
 function payload() {
   return {
     id: $('job-id').value || undefined,
@@ -210,7 +266,7 @@ function payload() {
     schedule: { weekday: $('tWeekday').value, weeksOfMonth: weeks('tWeeks'), monthsAhead: 2 },
     target: {
       dates: [],
-      rooms: parseRooms($('rooms').value),
+      rooms: selectedRooms(),
       timeFrom: $('timeFrom').value,
       durationMin: Number($('durationMin').value),
     },
@@ -234,7 +290,7 @@ async function api(path, opts = {}) {
 
 async function save() {
   const body = payload();
-  if (!body.target.rooms.length) return msg('save-msg', '호실을 하나 이상 적어주세요.', 'err');
+  if (!body.target.rooms.length) return msg('save-msg', '호실을 하나 이상 체크해 주세요.', 'err');
   const r = await api('/api/jobs', { method: 'POST', body: JSON.stringify(body) });
   if (r.error) return msg('save-msg', r.error, 'err');
   $('job-id').value = r.job.id;
@@ -244,7 +300,7 @@ async function save() {
 
 function loadManna() {
   $('name').value = '본관 3층 강의실 (311~318 중 한 곳)';
-  $('rooms').value = MANNA_ROOMS;
+  setRooms(MANNA_ROOMS);
   const opt = [...$('adapter').options].find(o => o.value.includes('manna'));
   if (opt) $('adapter').value = opt.value;
   msg('save-msg', '만나교회 기본값을 채웠습니다. 신청서 값을 입력한 뒤 저장하세요.', 'ok');
@@ -303,6 +359,51 @@ async function doDryRun() {
   if (r.screenshot) $('test-shot').innerHTML = `<img class="shot" src="${r.screenshot}" alt="예행연습 화면">`;
 }
 
+// ── 수동 예약 ──────────────────────────────────────────
+function manualBody() {
+  const date = $('m-date').value;
+  if (!date) { msg('m-msg', '날짜를 고르세요.', 'warn'); return null; }
+  return {
+    date,
+    timeFrom: $('m-time').value,
+    durationMin: Number($('m-duration').value) || undefined,
+    dryRun: $('m-dry').checked,
+  };
+}
+
+async function mCheck() {
+  const id = needJob('m-msg'); if (!id) return;
+  const body = manualBody(); if (!body) return;
+  $('m-shot').innerHTML = '';
+  msg('m-msg', `${body.date} ${body.timeFrom} 조회 중…`);
+  const r = await api(`/api/jobs/${id}/manualcheck`, { method: 'POST', body: JSON.stringify(body) });
+  if (r.error) return msg('m-msg', r.error, 'err');
+  msg('m-msg', r.slots.length
+    ? `예약 가능:\n${r.slots.map(s => `• ${s.label}`).join('\n')}`
+    : `${body.date} ${body.timeFrom} 에는 비어 있는 호실이 없습니다.`, r.slots.length ? 'ok' : 'warn');
+}
+
+async function mBook() {
+  const id = needJob('m-msg'); if (!id) return;
+  const body = manualBody(); if (!body) return;
+  if (!body.dryRun && !confirm(`${body.date} ${body.timeFrom} — 실제로 예약합니다. 되돌릴 수 없습니다. 진행할까요?`)) return;
+  $('m-shot').innerHTML = '';
+  msg('m-msg', body.dryRun ? '예행연습 중…' : '예약 중…');
+  const r = await api(`/api/jobs/${id}/manualbook`, { method: 'POST', body: JSON.stringify(body) });
+  msg('m-msg', r.message ?? r.error, r.ok ? 'ok' : 'err');
+  if (r.screenshot) $('m-shot').innerHTML = `<img class="shot" src="${r.screenshot}" alt="결과 화면">`;
+  refresh();
+}
+
+async function mWatch() {
+  const id = needJob('m-msg'); if (!id) return;
+  const body = manualBody(); if (!body) return;
+  if (!body.dryRun && !confirm(`${body.date} ${body.timeFrom} — 자리가 나면 실제로 예약합니다. 진행할까요?`)) return;
+  const r = await api(`/api/jobs/${id}/manualwatch`, { method: 'POST', body: JSON.stringify(body) });
+  msg('m-msg', r.message ?? r.error, r.ok ? 'ok' : 'err');
+  refresh();
+}
+
 async function refresh() {
   const s = await api('/api/state');
   const sel = $('adapter');
@@ -335,7 +436,7 @@ async function editJob(id) {
   $('tWeekday').value = job.schedule?.weekday ?? '일';
   $('timeFrom').value = job.target.timeFrom ?? '11:00';
   $('durationMin').value = job.target.durationMin ?? 60;
-  $('rooms').value = (job.target.rooms ?? []).map(r => `${r.id} = ${r.label ?? r.id}`).join('\n');
+  setRooms((job.target.rooms ?? []).map(r => (typeof r === 'string' ? { id: r } : r)));
   for (const [box, sched] of [['tWeeks', job.schedule?.weeksOfMonth ?? []], ['oWeeks', job.watch?.openAt?.weeksOfMonth ?? []]])
     $(box).querySelectorAll('input').forEach(i => { i.checked = sched.includes(Number(i.value)); });
   $('oWeekday').value = job.watch?.openAt?.weekday ?? '토';
@@ -360,7 +461,9 @@ es.onmessage = (e) => {
   el.scrollTop = el.scrollHeight;
 };
 
-$('rooms').value = MANNA_ROOMS;
+setRooms(MANNA_ROOMS);
+// 수동 예약의 기본 날짜는 다음 예약 대상일로 채워 둡니다.
+$('m-date').valueAsDate = new Date(Date.now() + 86400000);
 refresh();
 setInterval(refresh, 15000);
 </script>

@@ -4,7 +4,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addLogSink, log } from '../logger.js';
 import { Scheduler } from '../runner.js';
-import { checkLogin, manualLogin, runCheck, runDryRun } from '../operations.js';
+import {
+  checkLogin, manualJob, manualLogin, runBookFirst, runCheck, runDryRun,
+  type ManualRequest,
+} from '../operations.js';
 import {
   clearCredentials, deleteJob, getJob, hasCredentials, listJobs, saveCredentials, saveJob,
   type SavedJob,
@@ -132,6 +135,29 @@ export function startAdminServer(port: number, scheduler: Scheduler): void {
             case 'run':
               void scheduler.launch(id);
               return json(res, 200, { ok: true, message: '실행을 시작했습니다. 아래 로그를 확인하세요.' });
+
+            // ── 수동 모드: 날짜·시각을 직접 지정 ──
+            case 'manualcheck': {
+              const body = await readJson<ManualRequest>(req);
+              const { slots, dates } = await runCheck(manualJob(job, body));
+              return json(res, 200, { dates, slots });
+            }
+            case 'manualbook': {
+              const body = await readJson<ManualRequest & { dryRun: boolean }>(req);
+              const result = await runBookFirst(manualJob(job, body), body.dryRun !== false);
+              return json(res, 200, {
+                ...result,
+                screenshot: result.screenshot ? `/api/screenshot?file=${encodeURIComponent(result.screenshot)}` : null,
+              });
+            }
+            case 'manualwatch': {
+              const body = await readJson<ManualRequest & { dryRun: boolean }>(req);
+              void scheduler.launch(id, { job: manualJob(job, body), dryRun: body.dryRun !== false });
+              return json(res, 200, {
+                ok: true,
+                message: `${body.date} ${body.timeFrom} 자리가 날 때까지 계속 확인합니다. 아래 로그를 보세요.`,
+              });
+            }
           }
         }
       }
