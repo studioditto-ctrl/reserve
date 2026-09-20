@@ -55,6 +55,11 @@ export interface SiteProfile {
   search: {
     /** {date} {party} {time} 이 치환됩니다. */
     urlTemplate: string;
+    /**
+     * 조회 페이지로 갈 때 붙일 referer.
+     * 목록을 거쳐 들어오지 않으면 홈으로 돌려보내는 사이트가 있습니다.
+     */
+    referer?: string;
     /** 목록이 그려질 때까지 기다릴 셀렉터. */
     waitFor?: string;
     /**
@@ -386,7 +391,10 @@ export class ProfileAdapter implements SiteAdapter {
     });
     this.visits++;
     log.progress(this.visits, `확인 중 (${this.visits}) — ${date}${room ? ` ${room.label ?? room.id}` : ''}`);
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await page.goto(url, {
+      waitUntil: 'domcontentloaded',
+      ...(search.referer ? { referer: search.referer } : {}),
+    });
     await this.dismissPopups(page);
     if (search.preSteps?.length) await runSteps(page, search.preSteps, { dryRun: false });
     if (search.waitFor) {
