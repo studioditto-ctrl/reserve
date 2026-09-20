@@ -192,12 +192,25 @@ tr.unchecked td:nth-child(3),tr.unchecked td:nth-child(4){opacity:.45}
 </section>
 
 <section>
-  <h2>7. 저장된 작업</h2>
+  <h2>7. GitHub 에서 돌리기</h2>
+  <p class="note">이 컴퓨터를 켜 두지 않아도 되도록, 설정을 저장소에 올려 GitHub Actions 가 대신 실행하게 합니다. 아래 두 덩어리를 각각 붙여 넣으세요.</p>
+  <div class="btns"><button onclick="doExport()">내보내기</button></div>
+  <div id="ex-msg"></div>
+  <div id="ex-out" style="display:none">
+    <label><code>config/manna.job.json</code> 에 덮어쓸 내용</label>
+    <textarea id="ex-config" rows="14" readonly></textarea>
+    <label>저장소 Settings → Secrets → <code>BOOKING_VALUES</code> 에 넣을 값 (개인정보라 저장소에 두지 않습니다)</label>
+    <textarea id="ex-secret" rows="3" readonly></textarea>
+  </div>
+</section>
+
+<section>
+  <h2>8. 저장된 작업</h2>
   <table id="jobs"><tbody></tbody></table>
 </section>
 
 <section>
-  <h2>8. 실시간 로그</h2>
+  <h2>9. 실시간 로그</h2>
   <div id="log"></div>
 </section>
 </div>
@@ -402,6 +415,16 @@ async function mWatch() {
   const r = await api(`/api/jobs/${id}/manualwatch`, { method: 'POST', body: JSON.stringify(body) });
   msg('m-msg', r.message ?? r.error, r.ok ? 'ok' : 'err');
   refresh();
+}
+
+async function doExport() {
+  const id = needJob('ex-msg'); if (!id) return;
+  const r = await api(`/api/jobs/${id}/export`, { method: 'POST' });
+  if (r.error) return msg('ex-msg', r.error, 'err');
+  $('ex-config').value = r.config;
+  $('ex-secret').value = r.secret;
+  $('ex-out').style.display = '';
+  msg('ex-msg', '아래 내용을 저장소에 옮기세요. 설정은 파일로, 개인정보는 Secret 으로 나뉩니다.', 'ok');
 }
 
 async function refresh() {

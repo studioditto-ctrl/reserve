@@ -1,0 +1,137 @@
+# 예약을 GitHub 에서 돌립니다. 내 컴퓨터를 켜 둘 필요가 없습니다.
+#
+#  · 자동  — 매주 토요일에 깨어나, 오픈 주차(첫째·셋째)면 21시까지 기다렸다 예약
+#  · 수동  — Actions 탭에서 "Run workflow" 로 날짜를 직접 지정해 실행
+name: 예약
+
+on:
+  schedule:
+    # 토요일 11:35 UTC = 한국시간 20:35. 오픈(21:00) 25분 전에 깨어납니다.
+    # GitHub 의 cron 은 몇 분에서 십여 분까지 늦을 수 있어 여유를 크게 두었고,
+    # 깨어난 뒤에는 프로그램이 21:00 정각 60초 전까지 기다렸다 몰아칩니다.
+    # 오픈 주차가 아닌 토요일에는 곧바로 끝납니다(maxWaitMin).
+    - cron: '35 11 * * 6'
+
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '무엇을 할까요'
+        type: choice
+        required: true
+        default: check
+        options:
+          - check      # 지금 빈자리만 조회
+          - dryrun     # 신청 직전까지 예행연습
+          - book       # 지정한 날짜를 지금 예약
+          - watch      # 오픈까지 기다렸다 예약 (자동과 동일)
+      date:
+        description: '예약할 날짜 (YYYY-MM-DD). book 모드에서만 씁니다'
+        type: string
+        required: false
+      time:
+        description: '시작 시각 (HH:MM). 비우면 작업 설정을 씁니다'
+        type: string
+        required: false
+      duration:
+        description: '길이(분). 비우면 작업 설정을 씁니다'
+        type: string
+        required: false
+      confirm:
+        description: '실제로 예약합니다 (체크하지 않으면 예행연습)'
+        type: boolean
+        required: false
+        default: false
+      job:
+        description: '작업 파일'
+        type: string
+        required: false
+        default: config/manna.job.json
+
+concurrency:
+  # 예약이 두 번 겹쳐 돌지 않도록 합니다.
+  group: reserve
+  cancel-in-progress: false
+
+jobs:
+  reserve:
+    runs-on: ubuntu-latest
+    # 오픈 25분 전부터 대기 + 오픈 후 10분 몰아치기 = 넉넉히 잡아 60분
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: 브라우저 설치
+        run: npx playwright install --with-deps chromium
+
+      - name: 예약 실행
+        env:
+          # 사이트 로그인 (저장소 Settings → Secrets 에 넣으세요)
+          SITE_USERNAME: ${{ secrets.SITE_USERNAME }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          # 아이디·비밀번호 로그인이 막히는 경우의 우회로 (.sessions/*.json 내용)
+          SESSION_STATE: ${{ secrets.SESSION_STATE }}
+          # 신청서에 들어갈 개인정보. 저장소에 두지 않고 Secret 으로 받습니다.
+          # 예: {"name":"김만나 집사","reason":"소그룹 모임","count":"8","phone":"010-0000-0000"}
+          BOOKING_VALUES: ${{ secrets.BOOKING_VALUES }}
+          # 알림 (선택)
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # 러너는 UTC 라서, 요일·시각 계산이 한국 기준이 되도록 맞춥니다.
+          TZ: Asia/Seoul
+          HEADLESS: 'true'
+          NO_COLOR: '1'
+        run: |
+          set -euo pipefail
+          JOB="${{ inputs.job || 'config/manna.job.json' }}"
+          MODE="${{ inputs.mode || 'watch' }}"
+
+          # 예약 확정은 명시적으로 켤 때만 합니다.
+          # 자동 실행은 저장소 변수 RESERVE_CONFIRM 을 true 로 두어야 실제로 예약합니다.
+          if [ "${{ inputs.confirm || vars.RESERVE_CONFIRM }}" = "true" ]; then
+            CONFIRM="--confirm"
+            echo "::warning::실제 예약 모드입니다. 조건이 맞으면 예약이 확정됩니다."
+          else
+            CONFIRM=""
+            echo "예행연습 모드입니다 (최종 신청 버튼 직전에 멈춥니다)."
+          fi
+
+          echo "작업: $JOB / 모드: $MODE"
+
+          case "$MODE" in
+            check)
+              npx tsx src/cli.ts check "$JOB"
+              ;;
+            dryrun)
+              npx tsx src/cli.ts watch "$JOB" --auto-book --interval 5
+              ;;
+            book)
+              DATE="${{ inputs.date }}"
+              if [ -z "$DATE" ]; then echo "::error::book 모드에는 날짜가 필요합니다."; exit 1; fi
+              ARGS=""
+              [ -n "${{ inputs.time }}" ] && ARGS="$ARGS --time ${{ inputs.time }}"
+              [ -n "${{ inputs.duration }}" ] && ARGS="$ARGS --duration ${{ inputs.duration }}"
+              # shellcheck disable=SC2086
+              npx tsx src/cli.ts book-now "$DATE" "$JOB" $ARGS $CONFIRM
+              ;;
+            watch|*)
+              npx tsx src/cli.ts watch "$JOB" --auto-book $CONFIRM
+              ;;
+          esac
+
+      - name: 화면 캡처 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ github.run_id }}
+          path: screenshots/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -156,6 +156,15 @@ export function startAdminServer(port: number, scheduler: Scheduler, opts: { ope
                 screenshot: result.screenshot ? `/api/screenshot?file=${encodeURIComponent(result.screenshot)}` : null,
               });
             }
+            // 저장소에 커밋할 형태로 내보냅니다.
+            // 개인정보(values)는 빼고, 그건 GitHub Secret 으로 넣습니다.
+            case 'export': {
+              const { id: _id, enabled: _e, createdAt: _c, updatedAt: _u, lastRun: _l, values, ...rest } = job;
+              return json(res, 200, {
+                config: JSON.stringify(rest, null, 2),
+                secret: JSON.stringify(values ?? {}),
+              });
+            }
             case 'run':
               void scheduler.launch(id);
               return json(res, 200, { ok: true, message: '실행을 시작했습니다. 아래 로그를 확인하세요.' });

@@ -80,6 +80,17 @@ export async function watch(deps: WatchDeps): Promise<WatchResult> {
     log.info(`다음 예약 오픈: ${formatKST(nextOpen)} (${fmtDuration(nextOpen.getTime() - Date.now())} 뒤)`);
   }
 
+  // 오픈이 아직 한참 남았으면 기다리지 않고 끝냅니다.
+  // 매주 깨어나되 실제 오픈 주차에만 일하도록 하는 장치입니다.
+  const maxWaitMs = w.maxWaitMin ? w.maxWaitMin * 60_000 : undefined;
+  if (openSched && nextOpen && maxWaitMs && nextOpen.getTime() - Date.now() > maxWaitMs) {
+    log.info(
+      `이번에는 할 일이 없습니다 — 다음 오픈이 ${fmtDuration(nextOpen.getTime() - Date.now())} 뒤라 ` +
+        `대기 한도(${w.maxWaitMin}분)를 넘습니다.`,
+    );
+    return { reason: 'deadline' };
+  }
+
   if (w.intervalSec !== undefined && w.intervalSec < MIN_INTERVAL_SEC) {
     log.warn(`intervalSec 이 너무 짧아 ${MIN_INTERVAL_SEC}초로 올렸습니다.`);
   }

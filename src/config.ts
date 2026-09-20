@@ -71,6 +71,17 @@ export function loadJob(path: string): JobConfig {
   // 반복 일정이 있으면 여기서 날짜를 계산합니다. 감시 중에는 워커가 다시 갱신합니다.
   if (job.schedule) job.target.dates = upcomingDates(job.schedule);
 
+  // 신청서에 들어갈 개인정보는 저장소에 두지 않고 환경변수로 받을 수 있습니다.
+  // GitHub Actions 에서는 Secrets 를 BOOKING_VALUES 로 넘깁니다.
+  if (process.env.BOOKING_VALUES) {
+    try {
+      const injected = JSON.parse(process.env.BOOKING_VALUES) as Record<string, string>;
+      job.values = { ...job.values, ...injected };
+    } catch {
+      throw new Error('BOOKING_VALUES 가 올바른 JSON 이 아닙니다.');
+    }
+  }
+
   if (!job.target.dates?.length) {
     throw new Error(
       `${full}: 대상 날짜가 없습니다. "target.dates" 에 날짜를 적거나 "schedule" 로 반복 일정을 지정하세요.`,
