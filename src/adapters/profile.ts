@@ -213,6 +213,8 @@ export class ProfileAdapter implements SiteAdapter {
   private popupHookInstalled = false;
   /** 몇 번째 페이지를 열고 있는지. 진행 표시에만 씁니다. */
   private visits = 0;
+  /** 시간표를 못 찾은 첫 화면만 증거로 남기기 위한 표시. */
+  private capturedMiss = false;
 
   get name(): string {
     return this.profile.name;
@@ -396,7 +398,27 @@ export class ProfileAdapter implements SiteAdapter {
         .catch(() => false);
       // 목록 컨테이너가 아예 안 뜨면 그 날짜는 자리가 없는 것으로 봅니다.
       if (!appeared) {
-        log.warn(`${date}${room ? ` ${room.label ?? room.id}` : ''} — 시간표를 찾지 못했습니다 (${search.waitFor}).`);
+        const where = `${date}${room ? ` ${room.label ?? room.id}` : ''}`;
+        // 실제 도착한 주소를 같이 남깁니다. 로그인 페이지로 튕겼는지,
+        // 안내 페이지로 갔는지가 여기서 바로 드러납니다.
+        const landed = page.url();
+        const title = await page.title().catch(() => '');
+        log.warn(`${where} — 시간표를 찾지 못했습니다 (${search.waitFor}).`);
+        log.warn(`   도착한 주소: ${landed}`);
+        log.warn(`   페이지 제목: ${title}`);
+
+        // 첫 실패만 화면과 본문을 남깁니다. 여덟 곳 모두 남기면 산더미가 됩니다.
+        if (!this.capturedMiss) {
+          this.capturedMiss = true;
+          const shot = await snapshot(page, 'no-timetable').catch(() => undefined);
+          const text = await page
+            .locator('body')
+            .innerText()
+            .then((t) => t.replace(/\s+/g, ' ').trim().slice(0, 600))
+            .catch(() => '');
+          log.warn(`   화면: ${shot ?? '(캡처 실패)'}`);
+          log.warn(`   본문 앞부분: ${text}`);
+        }
         return [];
       }
     }
