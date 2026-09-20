@@ -208,6 +208,9 @@ program
       log.warn('시간표가 뜨는 날짜가 하나도 없었습니다.');
       const landed = new Set(results.map((r) => r.landedUrl));
       log.warn(`도착한 주소: ${[...landed].join(', ')}`);
+      for (const nav of new Set(results.map((r) => r.navigation).filter(Boolean))) {
+        log.warn(`이동 경위: ${nav}`);
+      }
       log.warn('모두 같은 주소로 튕겼다면 날짜 문제가 아니라 주소·권한 문제입니다.');
       process.exitCode = 1;
       return;

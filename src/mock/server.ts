@@ -148,6 +148,11 @@ const server = createServer(async (req, res) => {
   }
 
   // 체크박스형 시간표 (만나교회 구조). 빈 호실만 11시·11시30분이 열려 있습니다.
+  // MOCK_REDIRECT_HOME=1 이면 예약 페이지를 홈으로 돌려보냅니다 (만나교회 증상 재현).
+  if (path === '/cbooking' && process.env.MOCK_REDIRECT_HOME === '1') {
+    return redirect(res, '/my');
+  }
+
   if (path === '/cbooking') {
     const date = url.searchParams.get('date') ?? '';
     const room = url.searchParams.get('room') ?? '';
