@@ -30,6 +30,8 @@
     "urlTemplate": "https://manna.or.kr/%ed%96%89%ec%a0%95/%ec%9e%a5%ec%86%8c%ec%98%88%ec%95%bd/%eb%93%b1%eb%a1%9d/?location={room}&reserve_date={date}",
     "//waitFor": "확인됨 — 신청 폼의 예약자명 칸이 뜨면 페이지가 그려진 것입니다.",
     "waitFor": "#reservation-form-name",
+    "//waitForMs": "자리가 없을 때 이만큼 기다렸다 넘어갑니다. 호실 8곳을 도니 한 바퀴가 최대 이 값의 8배입니다. 오픈 순간에 느려지지 않도록 짧게 잡았습니다.",
+    "waitForMs": 4000,
     "//checkboxTimes": "확인됨 — 시간대가 30분 단위 체크박스입니다. 라벨은 '11시', '11시30분' 형식.",
     "checkboxTimes": {
       "selector": "input[name=\"reservation[time]\"]",
