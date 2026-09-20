@@ -19,13 +19,13 @@
     "app": "tsx src/cli.ts serve"
   },
   "dependencies": {
-    "commander": "^14.0.2",
-    "dotenv": "^17.2.3",
-    "playwright": "^1.57.0"
+    "commander": "^15.0.0",
+    "dotenv": "^17.4.2",
+    "playwright": "^1.62.1"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1",
-    "tsx": "^4.20.7",
-    "typescript": "^5.9.3"
+    "@types/node": "^26.4.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
   }
 }
