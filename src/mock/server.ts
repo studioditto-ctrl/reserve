@@ -148,9 +148,18 @@ const server = createServer(async (req, res) => {
   }
 
   // 체크박스형 시간표 (만나교회 구조). 빈 호실만 11시·11시30분이 열려 있습니다.
-  // MOCK_REDIRECT_HOME=1 이면 예약 페이지를 홈으로 돌려보냅니다 (만나교회 증상 재현).
+  // MOCK_REDIRECT_HOME=1 이면 예약 페이지를 홈으로 돌려보냅니다 (서버 리다이렉트).
   if (path === '/cbooking' && process.env.MOCK_REDIRECT_HOME === '1') {
     return redirect(res, '/my');
+  }
+
+  // MOCK_JS_REDIRECT=1 이면 200 으로 폼을 주되 자바스크립트가 홈으로 옮깁니다.
+  // 만나교회에서 관측된 증상(HTTP 200, 서버 리다이렉트 없음, 최종 주소는 홈)과 같습니다.
+  if (path === '/cbooking' && process.env.MOCK_JS_REDIRECT === '1') {
+    return send(res, 200, page('311호 예약', `<div id="slot-list">
+      <input id="res-name" name="reservation[name]">
+      <input type="checkbox" name="reservation[time]" value="11시"> 11시
+      </div><script>location.replace('/my');</script>`));
   }
 
   if (path === '/cbooking') {
