@@ -15,6 +15,11 @@ export interface Slot {
   price?: string;
   url?: string;
   /**
+   * 체크박스형 시간표에서 이 예약을 이루는 칸들의 라벨.
+   * 예: 11시~12시 1시간이면 ["11시", "11시30분"] — 예약할 때 모두 체크합니다.
+   */
+  parts?: string[];
+  /**
    * 이 슬롯을 발견한 목록 페이지의 URL.
    * 예약할 때 같은 페이지를 다시 열어 같은 자리를 정확히 찾아가기 위해 씁니다.
    */
@@ -38,6 +43,11 @@ export interface JobTarget {
   timeFrom?: string;
   /** 이 시각 이전 (HH:mm) */
   timeTo?: string;
+  /**
+   * 예약 길이(분). 체크박스형 시간표에서 몇 칸을 함께 고를지 정합니다.
+   * 예: 30분 칸 사이트에서 60 이면 timeFrom 부터 두 칸.
+   */
+  durationMin?: number;
   party?: number;
   /** 라벨에 반드시 포함되어야 하는 문자열들 */
   keywords?: string[];

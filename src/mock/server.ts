@@ -22,6 +22,9 @@ const OPEN_TIMES = new Set(['19:00', '20:30']);
 const ROOM_TIMES = ['09:00', '10:00', '11:00', '13:00', '14:00'];
 const FREE_ROOM = process.env.MOCK_FREE_ROOM ?? '315';
 const ROOMS = ['311', '312', '313', '314', '315', '316', '317', '318'];
+/** 만나교회처럼 30분 단위 체크박스로 된 시간표. 오전/오후 표시가 없습니다. */
+const CB_LABELS = ['9시', '9시30분', '10시', '10시30분', '11시', '11시30분',
+                   '12시', '12시30분', '1시', '1시30분', '2시', '2시30분'];
 const booked = new Map<string, string>();
 
 const page = (title: string, body: string) => `<!doctype html><html lang="ko"><head>
@@ -29,6 +32,8 @@ const page = (title: string, body: string) => `<!doctype html><html lang="ko"><h
 <style>body{font:16px/1.6 system-ui;margin:40px auto;max-width:640px}
 .slot{display:block;padding:10px 14px;margin:6px 0;border:1px solid #ccc;border-radius:8px;text-decoration:none;color:#111}
 .sold-out{color:#c00;font-size:13px}.done{color:#0a0;font-weight:700}
+.cb{display:inline-block;padding:6px 10px;margin:4px;border:1px solid #ccc;border-radius:6px}
+.cb.taken{color:#999;background:#f4f4f4}
 #notice-popup{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center}
 #notice-popup>div{background:#fff;padding:24px 32px;border-radius:10px}</style>
 </head><body><h1>맛집예약 (MOCK)</h1>${body}</body></html>`;
@@ -127,6 +132,41 @@ const server = createServer(async (req, res) => {
         : `<div class="slot"><span class="slot-time">${t}</span> · <span class="sold-out">매진</span></div>`;
     }).join('');
     return send(res, 200, page('예약', `<div id="slot-list"><h2>${date} · ${party}인</h2>${rows}</div>`));
+  }
+
+  // 체크박스형 시간표 (만나교회 구조). 빈 호실만 11시·11시30분이 열려 있습니다.
+  if (path === '/cbooking') {
+    const date = url.searchParams.get('date') ?? '';
+    const room = url.searchParams.get('room') ?? '';
+    const open = Date.now() - START >= OPEN_AFTER_MS;
+    const rows = CB_LABELS.map((label) => {
+      const key = `${date} ${room} ${label}`;
+      const free = open && room === FREE_ROOM && !booked.has(key);
+      return `<label class="cb${free ? '' : ' taken'}">
+        <input type="checkbox" name="reservation[time]" value="${label}"${free ? '' : ' disabled'}>
+        ${label}${free ? '' : ' <span class="sold-out">예약불가</span>'}</label>`;
+    }).join('');
+    return send(res, 200, page(`${room}호 예약`, `<div id="slot-list"><h2>${date} · ${room}호</h2>
+      <form method="post" action="/cconfirm">
+        <input type="hidden" name="date" value="${date}"><input type="hidden" name="room" value="${room}">
+        ${rows}
+        <p><input id="res-name" name="reservation[name]" placeholder="김만나 성도,집사,권사,장로"></p>
+        <p><input id="res-reason" name="reservation[reason]" placeholder="사용 목적을 입력하세요."></p>
+        <p><input id="res-count" name="reservation[max_count]" placeholder="인원을 입력하세요."></p>
+        <p><input id="res-phone" name="reservation[phone]" placeholder="010-0000-0000"></p>
+        <p><input type="submit" value="신청하기"></p>
+      </form></div>`));
+  }
+
+  if (path === '/cconfirm' && req.method === 'POST') {
+    const form = await readBody(req);
+    const times = form.getAll('reservation[time]');
+    if (times.length === 0) return send(res, 400, page('오류', '<p id="form-error">시간을 선택하세요.</p>'));
+    if (!form.get('reservation[name]')) return send(res, 400, page('오류', '<p id="form-error">예약자명이 필요합니다.</p>'));
+    for (const t of times) booked.set(`${form.get('date')} ${form.get('room')} ${t}`, 'x');
+    const code = `R${Math.floor(Math.random() * 900000 + 100000)}`;
+    return send(res, 200, page('신청 완료', `<div class="done">예약이 완료되었습니다</div>
+      <div>${form.get('date')} ${form.get('room')}호 ${times.join(', ')}</div><div class="code">${code}</div>`));
   }
 
   if (path === '/reserve') {

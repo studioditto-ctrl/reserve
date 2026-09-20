@@ -1,55 +1,55 @@
 {
-  "//": "만나교회 장소예약 프로필. TODO 는 inspect 결과로 채워야 합니다.",
+  "//": "만나교회 장소예약 프로필. 브라우저 조사로 확인된 값이 들어 있습니다.",
   "//경로": "행정 → 장소예약 → 본관 → 3층 → 311~318호",
   "name": "manna",
   "baseUrl": "https://manna.or.kr",
 
-  "//dismiss": "로그인 페이지에 뜨는 공지 팝업의 닫기 버튼. 보일 때만 누르고 없으면 넘어갑니다. inspect 로 실제 셀렉터를 확인해 고치세요.",
-  "dismiss": ["#popup_close", ".popup-close", ".btn-popup-close", ".layer_close", "button.close"],
-  "//closePopupWindows": "window.open 으로 뜨는 별도 창은 자동으로 닫습니다.",
+  "//dismiss": "로그인 페이지 공지 팝업의 닫기 버튼 후보. 보일 때만 누르고 없으면 넘어갑니다.",
+  "dismiss": ["#global_search_popup_close", "#popup_close", ".popup-close", ".layer_close", "button.close"],
   "closePopupWindows": true,
 
   "login": {
     "url": "https://manna.or.kr/%ed%9a%8c%ec%9b%90/%eb%a1%9c%ea%b7%b8%ec%9d%b8/?redirect_to=https://manna.or.kr/",
-    "//checkUrl": "로그인 여부만 확인할 가벼운 페이지. 마이페이지가 있으면 그 주소로 바꾸세요.",
     "checkUrl": "https://manna.or.kr/",
-    "//successSelector": "확인됨 — 로그인 상태에서만 '로그아웃' 링크가 보입니다. 이 링크에 id/class 가 없어 글자로 가리킵니다(Playwright :has-text 문법).",
+    "//successSelector": "확인됨 — 로그인 상태에서만 '로그아웃' 링크가 보입니다.",
     "successSelector": "a:has-text(\"로그아웃\")",
-    "//입력칸": "TODO — 로그인 페이지에서 inspect 를 돌리면 아래 세 개가 나옵니다.",
+    "//입력칸": "TODO — 로그인 페이지에서 조사 스니펫을 돌리면 나옵니다. 그 전까지는 login --manual 로 직접 로그인하세요.",
     "usernameSelector": "TODO",
     "passwordSelector": "TODO",
     "submitSelector": "TODO",
-    "//manual": "2FA·캡차가 있으면 true 로 두고 `login --manual` 을 쓰세요.",
-    "manual": false
+    "manual": true
   },
 
   "search": {
-    "//urlTemplate": "확인된 실제 주소. {room} 에 location 코드, {date} 에 YYYY-MM-DD 가 들어갑니다.",
+    "//urlTemplate": "확인됨. {room} 에 location 코드, {date} 에 YYYY-MM-DD.",
     "urlTemplate": "https://manna.or.kr/%ed%96%89%ec%a0%95/%ec%9e%a5%ec%86%8c%ec%98%88%ec%95%bd/%eb%93%b1%eb%a1%9d/?location={room}&reserve_date={date}",
-    "preSteps": [],
-    "//waitFor": "TODO — 시간표가 그려지는 컨테이너",
-    "waitFor": "TODO-시간표-컨테이너",
-    "//slotSelector": "TODO — 시간대 한 칸에 해당하는 요소 (여러 개가 잡혀야 정상)",
-    "slotSelector": "TODO-시간대-한-칸",
-    "//unavailableSelector": "TODO — 그 칸 안의 '예약불가/마감' 표시",
-    "unavailableSelector": "TODO-예약불가-표시",
-    "fields": {
-      "time": "TODO-시각-표시",
-      "url": "self"
-    }
+    "//waitFor": "확인됨 — 신청 폼의 예약자명 칸이 뜨면 페이지가 그려진 것입니다.",
+    "waitFor": "#reservation-form-name",
+    "//checkboxTimes": "확인됨 — 시간대가 30분 단위 체크박스입니다. 라벨은 '11시', '11시30분' 형식.",
+    "checkboxTimes": {
+      "selector": "input[name=\"reservation[time]\"]",
+      "labelFrom": "label"
+    },
+    "//unavailableSelector": "TODO — 이미 찬 시간대가 disabled 면 설정 없이도 걸러집니다. class 로만 표시된다면 그 class 를 여기 적으세요.",
+    "slotSelector": "input[name=\"reservation[time]\"]"
   },
 
   "book": {
-    "clickSlot": true,
-    "//steps": "TODO — 시간대를 누른 뒤의 신청 폼 흐름. final:true 는 되돌릴 수 없는 최종 신청 버튼입니다.",
+    "//steps": "확인됨 — 체크박스를 고른 뒤 이 순서로 채웁니다. final:true 가 되돌릴 수 없는 신청 버튼입니다.",
     "steps": [
-      { "action": "waitFor", "selector": "TODO-신청폼-첫-요소" },
-      { "action": "fill", "selector": "TODO-사용목적", "value": "TODO-사용목적-내용" },
-      { "action": "fill", "selector": "TODO-연락처", "valueFrom": "env:BOOKING_PHONE" },
-      { "action": "check", "selector": "TODO-동의", "optional": true },
-      { "action": "click", "selector": "TODO-신청완료-버튼", "final": true }
+      { "action": "fill", "selector": "#reservation-form-name", "valueFrom": "env:BOOKING_NAME" },
+      { "action": "fill", "selector": "#reservation-form-reason", "valueFrom": "env:BOOKING_REASON" },
+      { "action": "fill", "selector": "#reservation-form-count", "valueFrom": "env:BOOKING_COUNT" },
+      { "action": "fill", "selector": "#reservation-form-phone", "valueFrom": "env:BOOKING_PHONE" },
+      { "action": "fill", "selector": "#reservation-form-memo", "valueFrom": "env:BOOKING_MEMO", "optional": true },
+      {
+        "//": "페이지에 검색 팝업 등 다른 submit 버튼이 있어, 예약 폼 안의 것만 집습니다.",
+        "action": "click",
+        "selector": "form:has(#reservation-form-name) input[type=submit]",
+        "final": true
+      }
     ],
-    "successSelector": "TODO-완료-확인-요소",
-    "confirmationSelector": "TODO-접수번호"
+    "//successSelector": "TODO — 신청 완료 화면에서만 보이는 요소. 첫 dry-run 스크린샷으로 확인하면 됩니다.",
+    "successSelector": "TODO-완료-확인-요소"
   }
 }

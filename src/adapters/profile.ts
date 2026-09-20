@@ -5,6 +5,7 @@ import type { Locator, Page } from 'playwright';
 import { resolveValue } from '../config.js';
 import { log } from '../logger.js';
 import { snapshot } from '../browser.js';
+import { minutesToHHMM, parseTimeLabels } from '../timelabel.js';
 import type { BookingResult, Credentials, JobTarget, RoomRef, SiteAdapter, Slot } from '../types.js';
 
 /** 예약 흐름의 한 단계. 사이트마다 다른 클릭 순서를 JSON 으로 기술합니다. */
@@ -59,6 +60,20 @@ export interface SiteProfile {
     unavailableSelector?: string;
     /** 검색 페이지에서 목록을 띄우기 전에 필요한 조작(인원 선택 등). */
     preSteps?: Step[];
+    /**
+     * 시간대가 체크박스로 제공되는 사이트.
+     * 30분 칸 두 개로 1시간을 예약하는 식이라, 필요한 칸을 모두 골라 한 번에 신청합니다.
+     * 이 설정이 있으면 slotSelector 대신 이쪽이 쓰입니다.
+     */
+    checkboxTimes?: {
+      /** 체크박스 요소들. 예: 'input[name="reservation[time]"]' */
+      selector: string;
+      /**
+       * 라벨 글자를 읽을 위치. 'label' 이면 감싸는 <label>,
+       * 그 밖에는 체크박스 기준 상대 셀렉터. 기본값 'label'.
+       */
+      labelFrom?: string;
+    };
   };
   book: {
     /** 슬롯 요소를 먼저 클릭할지 여부. 기본 true. */
@@ -167,6 +182,14 @@ function must(selector: string | undefined): string {
   return selector;
 }
 
+
+/** 체크박스 시간표의 칸 하나. */
+interface TimeCell {
+  index: number;
+  label: string;
+  available: boolean;
+}
+
 /**
  * 프로필 JSON 하나로 동작하는 어댑터.
  * 새 사이트를 붙일 때 코드를 짤 필요 없이 셀렉터만 채우면 됩니다.
@@ -246,6 +269,73 @@ export class ProfileAdapter implements SiteAdapter {
       });
   }
 
+
+  /** 체크박스 시간표를 한 번에 읽어옵니다 (칸마다 왕복하지 않도록 페이지 안에서 처리). */
+  private async readTimeCells(page: Page): Promise<TimeCell[]> {
+    const cfg = this.profile.search.checkboxTimes!;
+    return page.evaluate(
+      ({ selector, labelFrom, unavailable }) => {
+        (globalThis as unknown as Record<string, unknown>).__name ??= function (f: unknown) {
+          return f;
+        };
+        const nodes = Array.from(document.querySelectorAll(selector)) as HTMLInputElement[];
+        return nodes.map((el, index) => {
+          const wrapping = el.closest('label');
+          const labelEl =
+            labelFrom && labelFrom !== 'label'
+              ? (el.parentElement?.querySelector(labelFrom) ?? null)
+              : wrapping;
+          const label = ((labelEl ?? el.parentElement)?.textContent ?? '').replace(/\s+/g, ' ').trim();
+          const scope = wrapping ?? el.parentElement;
+          const blocked =
+            el.disabled ||
+            el.getAttribute('aria-disabled') === 'true' ||
+            (unavailable ? Boolean(scope?.querySelector(unavailable)) : false);
+          return { index, label, available: !blocked };
+        });
+      },
+      {
+        selector: cfg.selector,
+        labelFrom: cfg.labelFrom ?? 'label',
+        unavailable: this.profile.search.unavailableSelector ?? null,
+      },
+    );
+  }
+
+  /**
+   * 원하는 시간대를 덮는 칸들을 찾습니다.
+   * 하나라도 비어 있지 않으면 undefined — 1시간을 통째로 못 잡으면 의미가 없기 때문입니다.
+   */
+  private pickTimeRange(
+    cells: TimeCell[],
+    target: JobTarget,
+  ): { times: string[]; label: string } | undefined {
+    const minutes = parseTimeLabels(cells.map((c) => c.label));
+    const known = minutes.filter((m): m is number => m !== undefined).sort((a, b) => a - b);
+    if (known.length < 2 || !target.timeFrom) return undefined;
+
+    // 칸 간격(보통 30분)은 목록에서 직접 알아냅니다.
+    const gaps = known.slice(1).map((m, i) => m - known[i]!).filter((g) => g > 0);
+    const step = gaps.length ? Math.min(...gaps) : 30;
+    const start = parseTimeLabels([target.timeFrom])[0];
+    if (start === undefined) return undefined;
+
+    const span = target.durationMin ?? step;
+    const wanted: number[] = [];
+    for (let t = start; t < start + span; t += step) wanted.push(t);
+
+    const times: string[] = [];
+    for (const want of wanted) {
+      const idx = minutes.findIndex((m) => m === want);
+      if (idx < 0 || !cells[idx]!.available) return undefined;
+      times.push(minutesToHHMM(want));
+    }
+    return {
+      times,
+      label: `${minutesToHHMM(start)}~${minutesToHHMM(start + span)} (${times.length}칸)`,
+    };
+  }
+
   async findSlots(page: Page, target: JobTarget): Promise<Slot[]> {
     this.hookPopups(page);
     // rooms 가 있으면 적힌 순서대로 확인합니다. 먼저 발견된 자리가 먼저 예약됩니다.
@@ -286,6 +376,24 @@ export class ProfileAdapter implements SiteAdapter {
         .catch(() => false);
       // 목록 컨테이너가 아예 안 뜨면 그 날짜는 자리가 없는 것으로 봅니다.
       if (!appeared) return [];
+    }
+
+    // ── 체크박스 시간표: 필요한 칸을 모두 잡을 수 있을 때만 후보로 내놓습니다 ──
+    if (search.checkboxTimes) {
+      const picked = this.pickTimeRange(await this.readTimeCells(page), target);
+      if (!picked) return [];
+      const [first] = picked.times;
+      return [
+        {
+          id: slotId(date, room?.id, first, picked.label),
+          label: `${date} ${room ? `${room.label ?? room.id} ` : ''}${picked.label}`,
+          date,
+          ...(room ? { room: room.id } : {}),
+          ...(first ? { time: first } : {}),
+          parts: picked.times,
+          searchUrl: url,
+        },
+      ];
     }
 
     const nodes = page.locator(search.slotSelector);
@@ -344,6 +452,25 @@ export class ProfileAdapter implements SiteAdapter {
     await this.dismissPopups(page);
     if (search.preSteps?.length) await runSteps(page, search.preSteps, { dryRun: false });
 
+    // ── 체크박스 시간표: 저장해 둔 칸들을 다시 찾아 모두 체크합니다 ──
+    if (search.checkboxTimes) {
+      const cells = await this.readTimeCells(page);
+      const minutes = parseTimeLabels(cells.map((c) => c.label));
+      const boxes = page.locator(search.checkboxTimes.selector);
+
+      for (const want of slot.parts ?? []) {
+        const wantMin = parseTimeLabels([want])[0];
+        const idx = minutes.findIndex((m) => m !== undefined && minutesToHHMM(m) === want && m === wantMin);
+        if (idx < 0 || !cells[idx]!.available) {
+          return { ok: false, message: `${want} 칸이 사라졌습니다 (다른 사람이 먼저 잡음): ${slot.label}` };
+        }
+        await boxes.nth(idx).check();
+      }
+
+      const { stoppedBeforeConfirm } = await runSteps(page, book.steps, opts);
+      return this.finishBooking(page, slot, book, stoppedBeforeConfirm);
+    }
+
     let targetNode: Locator | undefined;
     const nodes = page.locator(search.slotSelector);
     const count = await nodes.count();
@@ -363,6 +490,16 @@ export class ProfileAdapter implements SiteAdapter {
     if (book.clickSlot !== false) await targetNode.click();
 
     const { stoppedBeforeConfirm } = await runSteps(page, book.steps, opts);
+    return this.finishBooking(page, slot, book, stoppedBeforeConfirm);
+  }
+
+  /** 신청을 마친 뒤 완료 화면을 확인하고 결과를 만듭니다. */
+  private async finishBooking(
+    page: Page,
+    slot: Slot,
+    book: SiteProfile['book'],
+    stoppedBeforeConfirm: boolean,
+  ): Promise<BookingResult> {
     if (stoppedBeforeConfirm) {
       const shot = await snapshot(page, 'dryrun');
       return {

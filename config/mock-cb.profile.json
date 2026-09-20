@@ -1,0 +1,30 @@
+{
+  "name": "mock-cb",
+  "baseUrl": "http://localhost:8787",
+  "login": {
+    "url": "http://localhost:8787/login",
+    "checkUrl": "http://localhost:8787/my",
+    "successSelector": "#account",
+    "usernameSelector": "#userid",
+    "passwordSelector": "#userpw",
+    "submitSelector": "#login-btn"
+  },
+  "search": {
+    "urlTemplate": "http://localhost:8787/cbooking?date={date}&room={room}",
+    "waitFor": "#slot-list",
+    "slotSelector": ".cb",
+    "unavailableSelector": ".sold-out",
+    "checkboxTimes": { "selector": "input[name=\"reservation[time]\"]", "labelFrom": "label" }
+  },
+  "book": {
+    "steps": [
+      { "action": "fill", "selector": "#res-name", "valueFrom": "env:BOOKING_NAME" },
+      { "action": "fill", "selector": "#res-reason", "value": "소그룹 모임" },
+      { "action": "fill", "selector": "#res-count", "value": "8" },
+      { "action": "fill", "selector": "#res-phone", "valueFrom": "env:BOOKING_PHONE" },
+      { "action": "click", "selector": "input[type=submit]", "final": true }
+    ],
+    "successSelector": ".done",
+    "confirmationSelector": ".code"
+  }
+}
