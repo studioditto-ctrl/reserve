@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { addLogSink, log } from '../logger.js';
 import { Scheduler } from '../runner.js';
 import {
-  checkLogin, manualJob, manualLogin, runBookFirst, runCheck, runDryRun,
+  checkLogin, manualJob, manualLogin, runBookFirst, runCheck, runDryRun, runProbe,
   type ManualRequest,
 } from '../operations.js';
 import {
@@ -168,6 +168,17 @@ export function startAdminServer(port: number, scheduler: Scheduler, opts: { ope
             case 'run':
               void scheduler.launch(id);
               return json(res, 200, { ok: true, message: '실행을 시작했습니다. 아래 로그를 확인하세요.' });
+
+            // 어느 날짜에 시간표가 뜨는지 훑어봅니다 (예약하지 않음).
+            case 'probe': {
+              const body = await readJson<{ from?: string; days?: number; room?: string }>(req);
+              const results = await runProbe(job, {
+                ...(body.from ? { from: body.from } : {}),
+                days: Math.min(Math.max(body.days ?? 14, 1), 60),
+                ...(body.room ? { room: body.room } : {}),
+              });
+              return json(res, 200, { results });
+            }
 
             // ── 수동 모드: 날짜·시각을 직접 지정 ──
             case 'manualcheck': {

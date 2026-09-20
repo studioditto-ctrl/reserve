@@ -6,7 +6,9 @@ import { resolveValue } from '../config.js';
 import { log } from '../logger.js';
 import { snapshot } from '../browser.js';
 import { minutesToHHMM, parseTimeLabels } from '../timelabel.js';
-import type { BookOptions, BookingResult, Credentials, JobTarget, RoomRef, SiteAdapter, Slot } from '../types.js';
+import type {
+  BookOptions, BookingResult, Credentials, JobTarget, ProbeResult, RoomRef, SiteAdapter, Slot,
+} from '../types.js';
 
 /** 예약 흐름의 한 단계. 사이트마다 다른 클릭 순서를 JSON 으로 기술합니다. */
 export interface Step {
@@ -485,6 +487,64 @@ export class ProfileAdapter implements SiteAdapter {
       if (matchesTarget(slot, target)) slots.push(slot);
     }
     return slots;
+  }
+
+  /**
+   * 날짜 하나를 열어 시간표가 뜨는지만 봅니다. 예약은 하지 않습니다.
+   * 조건(시각·길이)과 무관하게 "이 날짜에 뭔가 고를 수 있는가" 만 판단합니다.
+   */
+  async probe(page: Page, date: string, room?: RoomRef): Promise<ProbeResult> {
+    const { search } = this.profile;
+    this.hookPopups(page);
+    const url = fillTemplate(search.urlTemplate, { date, room: room?.id });
+    await page.goto(url, {
+      waitUntil: 'domcontentloaded',
+      ...(search.referer ? { referer: search.referer } : {}),
+    });
+    await this.dismissPopups(page);
+    if (search.preSteps?.length) await runSteps(page, search.preSteps, { dryRun: false });
+
+    const base: Omit<ProbeResult, 'formFound' | 'openSlots'> = {
+      date,
+      ...(room ? { room: room.label ?? room.id } : {}),
+      landedUrl: page.url(),
+    };
+
+    if (search.waitFor) {
+      const appeared = await page
+        .locator(search.waitFor)
+        .first()
+        .waitFor({ state: 'visible', timeout: search.waitForMs ?? 10_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!appeared) return { ...base, landedUrl: page.url(), formFound: false, openSlots: 0 };
+    }
+
+    if (search.checkboxTimes) {
+      const cells = await this.readTimeCells(page);
+      return {
+        ...base,
+        landedUrl: page.url(),
+        formFound: cells.length > 0,
+        openSlots: cells.filter((c) => c.available).length,
+      };
+    }
+
+    const nodes = page.locator(search.slotSelector);
+    const total = await nodes.count();
+    let open = 0;
+    for (let i = 0; i < total; i++) {
+      if (!search.unavailableSelector) {
+        open++;
+        continue;
+      }
+      const node = nodes.nth(i);
+      const blocked =
+        (await node.locator(search.unavailableSelector).count()) > 0 ||
+        (await node.evaluate((el, sel) => el.matches(sel), search.unavailableSelector).catch(() => false));
+      if (!blocked) open++;
+    }
+    return { ...base, landedUrl: page.url(), formFound: total > 0, openSlots: open };
   }
 
   async book(page: Page, slot: Slot, opts: BookOptions): Promise<BookingResult> {

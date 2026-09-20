@@ -174,7 +174,20 @@ tr.unchecked td:nth-child(3),tr.unchecked td:nth-child(4){opacity:.45}
 </section>
 
 <section>
-  <h2>6. 수동 예약 (날짜·시각 직접 지정)</h2>
+  <h2>6. 어느 날짜가 열려 있나 (훑어보기)</h2>
+  <p class="note">날짜를 하루씩 넘기며 <b>시간표가 뜨는 날</b>을 찾습니다. 예약은 하지 않습니다. 언제부터 예약이 열리는지 모를 때 쓰세요.</p>
+  <div class="row">
+    <div><label>시작 날짜 (비우면 오늘부터)</label><input id="p-from" type="date"></div>
+    <div><label>며칠치</label><input id="p-days" type="number" value="14" min="1" max="60"></div>
+    <div><label>호실 코드 (비우면 1순위)</label><input id="p-room" placeholder="29"></div>
+  </div>
+  <div class="btns"><button onclick="doProbe()">훑어보기</button></div>
+  <div id="p-msg"></div>
+  <table id="p-table" style="display:none"><thead><tr><th>날짜</th><th>시간표</th><th>선택 가능</th></tr></thead><tbody id="p-body"></tbody></table>
+</section>
+
+<section>
+  <h2>7. 수동 예약 (날짜·시각 직접 지정)</h2>
   <p class="note">반복 일정·오픈 시각과 무관하게, 지정한 날짜를 <b>지금</b> 처리합니다. 호실은 위에서 체크한 순서를 그대로 씁니다. 먼저 작업을 저장하세요.</p>
   <div class="row">
     <div><label>날짜</label><input id="m-date" type="date"></div>
@@ -192,7 +205,7 @@ tr.unchecked td:nth-child(3),tr.unchecked td:nth-child(4){opacity:.45}
 </section>
 
 <section>
-  <h2>7. GitHub 에서 돌리기</h2>
+  <h2>8. GitHub 에서 돌리기</h2>
   <p class="note">이 컴퓨터를 켜 두지 않아도 되도록, 설정을 저장소에 올려 GitHub Actions 가 대신 실행하게 합니다. 아래 두 덩어리를 각각 붙여 넣으세요.</p>
   <div class="btns"><button onclick="doExport()">내보내기</button></div>
   <div id="ex-msg"></div>
@@ -205,12 +218,12 @@ tr.unchecked td:nth-child(3),tr.unchecked td:nth-child(4){opacity:.45}
 </section>
 
 <section>
-  <h2>8. 저장된 작업</h2>
+  <h2>9. 저장된 작업</h2>
   <table id="jobs"><tbody></tbody></table>
 </section>
 
 <section>
-  <h2>9. 실시간 로그</h2>
+  <h2>10. 실시간 로그</h2>
   <div id="log"></div>
 </section>
 </div>
@@ -372,6 +385,32 @@ async function doDryRun() {
   if (r.screenshot) $('test-shot').innerHTML = `<img class="shot" src="${r.screenshot}" alt="예행연습 화면">`;
 }
 
+async function doProbe() {
+  const id = needJob('p-msg'); if (!id) return;
+  $('p-table').style.display = 'none';
+  msg('p-msg', '훑는 중… 하루당 몇 초씩 걸립니다.');
+  const body = { from: $('p-from').value || undefined, days: Number($('p-days').value), room: $('p-room').value || undefined };
+  const r = await api(`/api/jobs/${id}/probe`, { method: 'POST', body: JSON.stringify(body) });
+  if (r.error) return msg('p-msg', r.error, 'err');
+
+  const open = r.results.filter((x) => x.formFound);
+  $('p-body').innerHTML = r.results.map((x) => {
+    const d = new Date(x.date + 'T00:00:00');
+    const wd = '일월화수목금토'[d.getDay()];
+    return `<tr><td>${x.date} (${wd})</td>
+      <td>${x.formFound ? '<span class="pill on">있음</span>' : '<span class="pill off">없음</span>'}</td>
+      <td>${x.formFound ? x.openSlots + '칸' : '—'}</td></tr>`;
+  }).join('');
+  $('p-table').style.display = '';
+
+  if (open.length === 0) {
+    const landed = [...new Set(r.results.map((x) => x.landedUrl))];
+    msg('p-msg', `시간표가 뜨는 날짜가 하나도 없습니다.\n도착한 주소: ${landed.join('\n')}\n모두 같은 주소면 날짜가 아니라 주소·권한 문제입니다.`, 'warn');
+  } else {
+    msg('p-msg', `시간표가 뜨는 날짜 ${open.length}일 — 그중 고를 칸이 있는 날은 ${open.filter((x) => x.openSlots > 0).length}일입니다.`, 'ok');
+  }
+}
+
 // ── 수동 예약 ──────────────────────────────────────────
 function manualBody() {
   const date = $('m-date').value;
@@ -433,6 +472,10 @@ async function refresh() {
   if (!sel.options.length) sel.innerHTML = s.profiles.map(p => `<option>${p}</option>`).join('');
   if (s.hasCredentials && !$('cred-user').value) $('cred-user').placeholder = '(저장되어 있음)';
 
+  // 저장된 작업이 있으면 첫 번째를 자동으로 불러옵니다.
+  // 그러지 않으면 페이지를 열 때마다 "먼저 작업을 저장하세요" 만 보게 됩니다.
+  if (!$('job-id').value && s.jobs.length) await editJob(s.jobs[0].id, true);
+
   $('jobs').querySelector('tbody').innerHTML = s.jobs.length ? s.jobs.map(j => {
     const d = s.details.find(x => x.id === j.id) ?? {};
     const open = j.nextOpen ? new Date(j.nextOpen).toLocaleString('ko-KR') : '—';
@@ -451,7 +494,7 @@ async function refresh() {
   }).join('') : '<tr><td colspan="4" class="note">아직 저장된 작업이 없습니다.</td></tr>';
 }
 
-async function editJob(id) {
+async function editJob(id, quiet = false) {
   const { job } = await api(`/api/jobs/${id}`);
   $('job-id').value = job.id; $('name').value = job.name;
   $('adapter').value = job.adapter; $('enabled').checked = job.enabled;
@@ -466,6 +509,7 @@ async function editJob(id) {
   $('oTime').value = job.watch?.openAt?.time ?? '21:00';
   $('autoBook').checked = job.watch?.autoBook !== false;
   for (const k of ['name','reason','count','phone','memo']) $('v-' + k).value = job.values?.[k] ?? '';
+  if (quiet) return;
   msg('save-msg', `"${job.name}" 을 불러왔습니다.`, 'ok');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

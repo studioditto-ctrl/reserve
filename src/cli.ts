@@ -9,7 +9,7 @@ import { loadAdapter } from './adapters/registry.js';
 import { log } from './logger.js';
 import { notify } from './notify/index.js';
 import { watch } from './watcher.js';
-import { manualJob, runBookFirst, runCheck } from './operations.js';
+import { manualJob, runBookFirst, runCheck, runProbe } from './operations.js';
 import { startAdminServer } from './admin/server.js';
 import { Scheduler } from './runner.js';
 import { formatReport, inspectPage } from './inspect.js';
@@ -182,6 +182,38 @@ program
     } finally {
       await session.close();
     }
+  });
+
+program
+  .command('probe')
+  .description('날짜를 하루씩 넘겨가며 시간표가 뜨는 날을 찾습니다 (예약하지 않음).')
+  .argument('[job]', '작업 파일 경로', DEFAULT_JOB)
+  .option('-f, --from <date>', '시작 날짜 YYYY-MM-DD. 없으면 오늘부터')
+  .option('-d, --days <n>', '며칠치를 볼지', '14')
+  .option('-r, --room <id>', '확인할 호실 코드. 없으면 작업의 첫 호실')
+  .action(async (jobPath: string, opts: { from?: string; days: string; room?: string }) => {
+    const job = loadJob(jobPath);
+    const days = Number(opts.days);
+    log.info(`${days}일치를 훑습니다 (예약하지 않습니다)`);
+
+    const results = await runProbe(job, {
+      ...(opts.from ? { from: opts.from } : {}),
+      days,
+      ...(opts.room ? { room: opts.room } : {}),
+    });
+
+    const open = results.filter((r) => r.formFound);
+    console.log();
+    if (open.length === 0) {
+      log.warn('시간표가 뜨는 날짜가 하나도 없었습니다.');
+      const landed = new Set(results.map((r) => r.landedUrl));
+      log.warn(`도착한 주소: ${[...landed].join(', ')}`);
+      log.warn('모두 같은 주소로 튕겼다면 날짜 문제가 아니라 주소·권한 문제입니다.');
+      process.exitCode = 1;
+      return;
+    }
+    log.ok(`시간표가 뜨는 날짜 ${open.length}일`);
+    for (const r of open) console.log(`  ${r.date}  선택 가능 ${r.openSlots}칸`);
   });
 
 program
