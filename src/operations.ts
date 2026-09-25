@@ -17,6 +17,41 @@ async function open(job: JobConfig, headless = env.headless): Promise<{ adapter:
   return { adapter, session };
 }
 
+/**
+ * 이 결과로 프로그램이 실패를 알려야 하는가.
+ *
+ * "빈자리 없음" 은 고장이 아니라 답입니다. 예행연습으로 물어봤다면 0 으로
+ * 끝내야 CI 가 초록으로 남고, 진짜 고장과 섞이지 않습니다.
+ * 다만 --confirm 으로 "잡아라" 고 시켰는데 못 잡았다면 알아채야 하므로 실패입니다.
+ */
+export function isFailure(result: Pick<BookingResult, 'ok' | 'reason'>, confirmed: boolean): boolean {
+  if (result.ok) return false;
+  if (result.reason === 'no-slot') return confirmed;
+  return true;
+}
+
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+
+/**
+ * "빈자리 없음" 을 사람이 읽을 수 있게 씁니다.
+ * 날짜·요일·시각을 함께 적어야, 엉뚱한 날을 찍은 것인지 정말 꽉 찬 것인지
+ * 로그만 보고도 가려집니다.
+ */
+export function noSlotMessage(target: { dates: string[]; timeFrom?: string; durationMin?: number }): string {
+  const when = target.dates
+    .map((d) => {
+      const day = DOW[new Date(`${d}T00:00:00`).getDay()];
+      return `${d} (${day})`;
+    })
+    .join(', ');
+  const time = target.timeFrom
+    ? ` ${target.timeFrom}${target.durationMin ? ` ~${target.durationMin}분` : ''}`
+    : '';
+  return when
+    ? `${when}${time} — 그 시간에 비어 있는 호실이 없습니다. (시간표는 정상적으로 열렸습니다)`
+    : '조건에 맞는 빈자리가 없습니다.';
+}
+
 /** schedule 이 있으면 대상 날짜를 지금 기준으로 다시 계산합니다. */
 export function resolveDates(job: JobConfig): string[] {
   if (!job.schedule) return job.target.dates;
@@ -138,7 +173,9 @@ export async function runBookFirst(job: JobConfig, dryRun: boolean): Promise<Boo
     const slots = await adapter.findSlots(session.page, target);
     const slot = slots[0];
     if (!slot) {
-      return { ok: false, message: '지금은 조건에 맞는 빈자리가 없습니다.' };
+      // 시간표까지는 정상적으로 열렸는데 고를 칸이 없었다는 뜻입니다.
+      // 페이지가 안 열린 경우는 findSlots 안에서 따로 로그를 남깁니다.
+      return { ok: false, reason: 'no-slot', message: noSlotMessage(target) };
     }
     log.info(`${dryRun ? '예행연습' : '예약 시도'}: ${slot.label}`);
     const result = await adapter.book(session.page, slot, { dryRun, values: job.values });

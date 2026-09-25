@@ -95,6 +95,12 @@ export interface BookingResult {
   confirmationCode?: string;
   message: string;
   screenshot?: string;
+  /**
+   * 왜 실패했는지. 'no-slot' 은 사이트는 멀쩡한데 그 시간에 빈 칸이 없었다는
+   * 뜻이라, 고장이 아니라 답입니다. 이 구분이 없으면 "그 시간엔 자리가 없다" 가
+   * CI 빨간불로 보고돼 진짜 고장과 섞입니다.
+   */
+  reason?: 'no-slot';
 }
 
 /**
