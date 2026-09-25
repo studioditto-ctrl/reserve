@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>본관 3층 예약</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --paper:#f7f6f3; --surface:#fffefb; --sunk:#efece5;
+  --ink:#1c1b19; --ink-2:#514d46; --ink-3:#8a847a;
+  --line:#e2dfd8; --line-2:#cfcabf;
+  --accent:#1f6f5c; --accent-soft:#e6f0ec; --accent-ink:#14503f; --on-accent:#fff;
+  --warn:#b4442e; --warn-soft:#f9ece8;
+  --shadow:0 1px 2px rgba(28,27,25,.05), 0 10px 28px -20px rgba(28,27,25,.4);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --paper:#16171a; --surface:#202226; --sunk:#1a1c1f;
+    --ink:#eceae6; --ink-2:#bdb9b1; --ink-3:#8b867d;
+    --line:#32353a; --line-2:#44484f;
+    --accent:#63c3a6; --accent-soft:#1c2f2a; --accent-ink:#93dcc3; --on-accent:#0e1512;
+    --warn:#e58a72; --warn-soft:#31211d;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -20px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#16171a; --surface:#202226; --sunk:#1a1c1f;
+  --ink:#eceae6; --ink-2:#bdb9b1; --ink-3:#8b867d;
+  --line:#32353a; --line-2:#44484f;
+  --accent:#63c3a6; --accent-soft:#1c2f2a; --accent-ink:#93dcc3; --on-accent:#0e1512;
+  --warn:#e58a72; --warn-soft:#31211d;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -20px rgba(0,0,0,.8);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"Noto Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+  font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.wrap{max-width:560px; margin:0 auto; padding-inline:16px; padding-block:28px 56px}
+[hidden]{display:none!important}
+
+h1{font-family:"Gowun Batang",serif; font-size:24px; margin:0 0 20px; letter-spacing:-.01em}
+
+/* ── 상태 카드 ── */
+.hero{
+  background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  padding:22px; box-shadow:var(--shadow);
+}
+.when{font-size:13px; color:var(--ink-3); margin:0}
+.big{font-family:"Gowun Batang",serif; font-size:30px; line-height:1.3; margin:4px 0 0; letter-spacing:-.02em}
+.sub{margin:10px 0 0; font-size:14px; color:var(--ink-2)}
+.sub b{color:var(--accent-ink); font-weight:700}
+
+/* ── 블록 ── */
+.card{background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  padding:20px; margin-top:14px; box-shadow:var(--shadow)}
+.card h2{font-size:15px; font-weight:700; margin:0 0 4px}
+.card .note{margin:0 0 16px; font-size:13px; color:var(--ink-3)}
+
+/* ── 인원 ── */
+.people{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.stepper{display:flex; align-items:center; gap:2px; border:1px solid var(--line-2); border-radius:12px; overflow:hidden}
+.stepper button{border:0; background:var(--surface); width:46px; height:46px; font-size:20px;
+  cursor:pointer; color:var(--ink); line-height:1}
+.stepper button:hover{background:var(--sunk)}
+.stepper input{width:64px; height:46px; border:0; border-inline:1px solid var(--line);
+  text-align:center; font:inherit; font-size:19px; font-weight:700; background:var(--surface); color:var(--ink)}
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+.stepper input{-moz-appearance:textfield}
+.fitnote{font-size:13px; color:var(--ink-2)}
+
+/* ── 호실 ── */
+.roomlist{display:flex; flex-direction:column; gap:8px; margin-top:4px}
+.room{
+  display:flex; align-items:center; gap:12px; padding:11px 13px;
+  border:1px solid var(--line); border-radius:12px; background:var(--paper);
+}
+.room.on{border-color:color-mix(in srgb,var(--accent) 45%,var(--line)); background:var(--accent-soft)}
+.room.bad{opacity:.5}
+.room .rk{
+  flex:none; width:26px; height:26px; border-radius:50%; display:grid; place-items:center;
+  font-size:12px; font-weight:700; background:var(--accent); color:var(--on-accent);
+}
+.room .rk.none{background:var(--sunk); color:var(--ink-3); border:1px solid var(--line-2)}
+.room .nm{flex:1; min-width:0; font-weight:500}
+.room .cap{display:block; font-size:12px; font-weight:400; color:var(--ink-3)}
+.room .cap.bad{color:var(--warn)}
+.room .mv{flex:none; display:flex; gap:4px}
+.room .mv button{width:34px; height:34px; border-radius:9px; border:1px solid var(--line-2);
+  background:var(--surface); cursor:pointer; font-size:14px; color:var(--ink)}
+.room .mv button:disabled{opacity:.3; cursor:not-allowed}
+.room input[type=checkbox]{flex:none; width:20px; height:20px; accent-color:var(--accent)}
+
+/* ── 버튼 ── */
+.actions{display:flex; flex-direction:column; gap:10px; margin-top:16px}
+button.big-btn{
+  width:100%; padding:15px; border-radius:13px; font:inherit; font-size:15px; font-weight:700;
+  cursor:pointer; border:1px solid var(--line-2); background:var(--surface); color:var(--ink);
+}
+button.big-btn:hover:not(:disabled){background:var(--sunk)}
+button.big-btn:disabled{opacity:.45; cursor:not-allowed}
+button.big-btn.primary{background:var(--accent); border-color:var(--accent); color:var(--on-accent)}
+button.big-btn.primary:hover:not(:disabled){background:var(--accent-ink)}
+button.big-btn.warn{background:var(--warn-soft); border-color:color-mix(in srgb,var(--warn) 45%,transparent); color:var(--warn)}
+button.big-btn .s{display:block; font-size:12px; font-weight:400; opacity:.75; margin-top:2px}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* ── 메시지 ── */
+.msg{margin-top:14px; padding:13px 14px; border-radius:12px; font-size:14px; white-space:pre-wrap;
+  border:1px solid var(--line); background:var(--sunk)}
+.msg.ok{background:var(--accent-soft); border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+.msg.err{background:var(--warn-soft); border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
+.msg.wait{color:var(--ink-3)}
+
+.result{display:flex; align-items:center; gap:10px; padding:11px 13px; border-radius:12px;
+  background:var(--sunk); border:1px solid var(--line); font-size:14px; margin-top:10px}
+.tag{flex:none; font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px;
+  background:var(--sunk); color:var(--ink-3); border:1px solid var(--line-2)}
+.tag.ok{background:var(--accent-soft); color:var(--accent-ink); border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+.tag.err{background:var(--warn-soft); color:var(--warn); border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
+.tag.run{background:var(--accent-soft); color:var(--accent-ink); border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+.result a{color:var(--ink-2); margin-left:auto; font-size:13px}
+
+/* ── 연결 / 고급 ── */
+.setup{margin-top:14px; padding:16px; border-radius:14px; background:var(--warn-soft);
+  border:1px solid color-mix(in srgb,var(--warn) 35%,transparent)}
+.setup b{color:var(--warn)}
+.setup p{margin:6px 0 0; font-size:13px; color:var(--ink-2)}
+.setup input{width:100%; margin-top:10px; padding:11px; font:inherit; font-size:14px;
+  border:1px solid var(--line-2); border-radius:10px; background:var(--surface); color:var(--ink)}
+.setup ol{padding-left:18px; font-size:13px; color:var(--ink-2); margin:10px 0 0}
+.setup li{margin:5px 0}
+details{margin-top:14px}
+summary{cursor:pointer; font-size:13px; color:var(--ink-3); padding:6px 0}
+.tiny-row{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px}
+.tiny-row label{display:block; font-size:12px; color:var(--ink-3); margin-bottom:4px}
+.tiny-row input,.tiny-row select{width:100%; padding:9px; font:inherit; font-size:14px;
+  border:1px solid var(--line-2); border-radius:9px; background:var(--paper); color:var(--ink)}
+code{font-family:ui-monospace,monospace; font-size:12.5px; background:var(--sunk);
+  padding:1px 5px; border-radius:4px; border:1px solid var(--line)}
+a{color:var(--accent-ink)}
+footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>본관 3층 예약</h1>
+
+<!-- 상태 -->
+<div class="hero">
+  <p class="when" id="when-label">다음 예약 오픈</p>
+  <p class="big" id="when-big">불러오는 중…</p>
+  <p class="sub" id="target-line"></p>
+</div>
+
+<!-- 연결 (토큰 없을 때만) -->
+<div class="setup" id="setup" hidden>
+  <b>처음이시라면 한 번만 연결해 주세요.</b>
+  <p>보는 건 그냥 되지만, <b>저장하거나 실행</b>하려면 GitHub 열쇠가 필요합니다. 이 브라우저에만 저장되고 다른 곳으로 가지 않습니다.</p>
+  <input type="password" id="token" placeholder="github_pat_… 붙여넣기" autocomplete="off" spellcheck="false">
+  <div class="actions"><button class="big-btn primary" id="btn-connect">연결</button></div>
+  <ol>
+    <li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">여기서 토큰 만들기</a></li>
+    <li>Repository access → <b>Only select repositories</b> → <code>reserve</code></li>
+    <li>Permissions → <b>Actions</b> 와 <b>Contents</b> 를 <b>Read and write</b> 로</li>
+    <li>만들어진 문자열을 위 칸에 붙여넣고 연결</li>
+  </ol>
+</div>
+
+<!-- 인원 -->
+<div class="card">
+  <h2>몇 명이 모이나요</h2>
+  <p class="note">정원에 안 맞는 방은 자동으로 빠집니다.</p>
+  <div class="people">
+    <div class="stepper">
+      <button id="p-minus" aria-label="한 명 줄이기">−</button>
+      <input type="number" id="people" value="8" min="1" max="30" inputmode="numeric" aria-label="인원">
+      <button id="p-plus" aria-label="한 명 늘리기">+</button>
+    </div>
+    <span class="fitnote" id="fitnote"></span>
+  </div>
+</div>
+
+<!-- 호실 -->
+<div class="card">
+  <h2>어느 방부터 잡을까요</h2>
+  <p class="note">위에서부터 확인해 먼저 비어 있는 한 곳을 잡습니다.</p>
+  <div class="roomlist" id="rooms"></div>
+</div>
+
+<!-- 실행 -->
+<div class="card">
+  <h2>해보기</h2>
+  <p class="note" id="try-note">GitHub 에서 돌아갑니다. 내 컴퓨터는 꺼져 있어도 됩니다.</p>
+  <div class="actions">
+    <button class="big-btn" id="btn-check" disabled>빈자리 보기
+      <span class="s">예약하지 않고 확인만 합니다</span></button>
+    <button class="big-btn" id="btn-dry" disabled>예행연습
+      <span class="s">신청서까지 채우고 마지막 버튼 직전에 멈춥니다</span></button>
+    <button class="big-btn warn" id="btn-book" disabled>지금 예약하기
+      <span class="s">되돌릴 수 없습니다</span></button>
+  </div>
+  <div class="msg" id="m-run" hidden></div>
+
+  <div class="setup" id="confirmBox" hidden>
+    <b>정말 예약할까요?</b>
+    <p id="confirmText"></p>
+    <div class="actions">
+      <button class="big-btn warn" id="btn-yes">예, 예약합니다</button>
+      <button class="big-btn" id="btn-no">취소</button>
+    </div>
+  </div>
+
+  <div id="runs" style="margin-top:6px"></div>
+</div>
+
+<!-- 저장 -->
+<div class="card">
+  <h2>설정 저장</h2>
+  <p class="note">지금 화면대로 저장하면, 다음 오픈부터 자동 예약이 이 설정으로 돕니다.</p>
+  <div class="actions">
+    <button class="big-btn primary" id="btn-save" disabled>저장</button>
+  </div>
+  <div class="msg" id="m-save" hidden></div>
+
+  <details>
+    <summary>시간·요일 바꾸기</summary>
+    <div class="tiny-row">
+      <div><label for="timeFrom">시작 시각</label><input type="time" id="timeFrom" step="1800"></div>
+      <div><label for="durationMin">길이 (분)</label><input type="number" id="durationMin" min="30" step="30"></div>
+    </div>
+    <div class="tiny-row">
+      <div><label for="tWeekday">예약 요일</label>
+        <select id="tWeekday"><option>일</option><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option><option>토</option></select></div>
+      <div><label for="oTime">오픈 시각</label><input type="time" id="oTime"></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>이름·연락처 (GitHub Secret 에 넣는 값)</summary>
+    <div class="tiny-row">
+      <div><label for="v-name">예약자</label><input type="text" id="v-name" placeholder="김만나 집사"></div>
+      <div><label for="v-phone">연락처</label><input type="text" id="v-phone" placeholder="010-0000-0000"></div>
+    </div>
+    <div class="tiny-row">
+      <div><label for="v-reason">사용 목적</label><input type="text" id="v-reason" placeholder="소그룹 모임"></div>
+      <div></div>
+    </div>
+    <div class="actions"><button class="big-btn" id="btn-secret">값 만들어서 복사</button></div>
+    <p class="note" style="margin-top:10px">복사한 뒤 <a href="https://github.com/studioditto-ctrl/reserve/settings/secrets/actions" target="_blank" rel="noopener">Secret 설정</a> 에서 <code>BOOKING_VALUES</code> 에 붙여넣으세요. 이 페이지는 이 값을 저장하지 않습니다.</p>
+  </details>
+
+  <details id="tokendet" hidden>
+    <summary>연결 끊기</summary>
+    <div class="actions"><button class="big-btn" id="btn-forget">이 브라우저에서 토큰 지우기</button></div>
+  </details>
+</div>
+
+<footer>예약은 GitHub Actions 가 실행합니다 · <a href="https://github.com/studioditto-ctrl/reserve/actions" target="_blank" rel="noopener">실행 기록 전체 보기</a></footer>
+
+</div>
+
+<script>
+"use strict";
+const OWNER="studioditto-ctrl", REPO="reserve", BRANCH="main";
+const CONFIG_PATH="config/manna.job.json", WORKFLOW="reserve.yml";
+const API=`https://api.github.com/repos/${OWNER}/${REPO}`;
+const TOKEN_KEY="reserve_gh_token";
+const DOW=["일","월","화","수","목","금","토"];
+
+const $=(id)=>document.getElementById(id);
+const esc=(v)=>String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+const pad=(n)=>String(n).padStart(2,"0");
+
+let token="", cfg=null, cfgSha="", rooms=[];
+
+function store(k,v){ try{ v===null?localStorage.removeItem(k):localStorage.setItem(k,v); }catch(_){} }
+function load(k){ try{ return localStorage.getItem(k)||""; }catch(_){ return ""; } }
+function show(id,text,kind){ const el=$(id); el.hidden=false; el.className="msg"+(kind?" "+kind:""); el.textContent=text; }
+
+/* ── GitHub ── */
+async function gh(path,opts){
+  const o=opts||{};
+  const headers={ "Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28" };
+  if(token) headers.Authorization="Bearer "+token;
+  if(o.body) headers["Content-Type"]="application/json";
+  const res=await fetch(API+path,{ method:o.method||"GET", headers, body:o.body });
+  if(res.status===204) return null;
+  const text=await res.text();
+  let data=null; try{ data=text?JSON.parse(text):null; }catch(_){ data={message:text}; }
+  if(!res.ok){ const e=new Error(`${res.status} ${(data&&data.message)||res.statusText}`); e.status=res.status; throw e; }
+  return data;
+}
+function b64(str){ const bs=new TextEncoder().encode(str); let s=""; bs.forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
+function unb64(s){ const bin=atob(s.replace(/\s/g,"")); return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0))); }
+
+/* ── 정원 ── */
+function capOf(label){
+  const m=/(\d+)\s*~\s*(\d+)\s*인/.exec(label||"");
+  return m?{min:+m[1],max:+m[2]}:null;
+}
+const fits=(r,n)=>!r.cap||(n>=r.cap.min&&n<=r.cap.max);
+
+/* ── 호실 ── */
+function renderRooms(){
+  const n=Number($("people").value)||1;
+  let rank=0;
+  $("rooms").innerHTML=rooms.map((r,i)=>{
+    const ok=fits(r,n), on=r.on&&ok;
+    const k=on?++rank:0;
+    return `<div class="room ${on?"on":""} ${ok?"":"bad"}">
+      <input type="checkbox" data-t="${i}" ${r.on?"checked":""} ${ok?"":"disabled"} aria-label="${esc(r.name)}">
+      <span class="rk ${k?"":"none"}">${k||"—"}</span>
+      <span class="nm">${esc(r.name)}
+        <span class="cap ${ok?"":"bad"}">${esc(r.capText)}${ok?"":" · 인원 안 맞음"}</span></span>
+      <span class="mv">
+        <button data-m="${i}" data-d="-1" ${i===0?"disabled":""} aria-label="위로">↑</button>
+        <button data-m="${i}" data-d="1" ${i===rooms.length-1?"disabled":""} aria-label="아래로">↓</button>
+      </span></div>`;
+  }).join("");
+  const usable=rooms.filter(r=>r.on&&fits(r,n)).length;
+  $("fitnote").textContent=usable?`${n}명이 들어갈 수 있는 방 ${usable}곳을 노립니다.`:"이 인원에 맞는 방이 없습니다.";
+  updateTargetLine();
+}
+$("rooms").addEventListener("click",(e)=>{
+  const mv=e.target.closest("[data-m]"); if(!mv) return;
+  const i=+mv.dataset.m, j=i+ +mv.dataset.d;
+  if(j<0||j>=rooms.length) return;
+  [rooms[i],rooms[j]]=[rooms[j],rooms[i]]; renderRooms();
+});
+$("rooms").addEventListener("change",(e)=>{
+  const t=e.target.closest("[data-t]"); if(!t) return;
+  rooms[+t.dataset.t].on=t.checked; renderRooms();
+});
+function onRooms(){ const n=Number($("people").value)||1; return rooms.filter(r=>r.on&&fits(r,n)); }
+
+/* ── 인원 ── */
+function setPeople(n){
+  $("people").value=Math.min(30,Math.max(1,n));
+  renderRooms();
+}
+$("p-minus").onclick=()=>setPeople((+$("people").value||1)-1);
+$("p-plus").onclick=()=>setPeople((+$("people").value||1)+1);
+$("people").oninput=()=>renderRooms();
+
+/* ── 다음 오픈 ── */
+function kstNow(){ const d=new Date(); return new Date(d.getTime()+(9*60+d.getTimezoneOffset())*60000); }
+function nthWeek(d){ return Math.floor((d.getDate()-1)/7)+1; }
+function nextMatch(weekday,weeks,hhmm,after){
+  const wi=DOW.indexOf(weekday); if(wi<0||!weeks||!weeks.length) return null;
+  const [h,m]=(hhmm||"21:00").split(":").map(Number);
+  const from=after||kstNow();
+  for(let i=0;i<200;i++){
+    const d=new Date(from.getFullYear(),from.getMonth(),from.getDate()+i,h,m,0);
+    if(d.getDay()===wi&&weeks.includes(nthWeek(d))&&d>from) return d;
+  }
+  return null;
+}
+/* 자동 예약이 노릴 날 = 다음 오픈 직후의 첫 예약일 */
+function targetAfterOpen(){
+  if(!cfg) return null;
+  const o=(cfg.watch||{}).openAt||{}, s=cfg.schedule||{};
+  const open=nextMatch(o.weekday||"토",o.weeksOfMonth||[1,3],$("oTime").value||o.time);
+  if(!open) return null;
+  return nextMatch($("tWeekday").value||s.weekday||"일",s.weeksOfMonth||[2,4],$("timeFrom").value||"11:00",open);
+}
+/* 지금 눌렀을 때 확인할 날 = 가장 가까운 예약일 */
+function soonestTarget(){
+  if(!cfg) return null;
+  const s=cfg.schedule||{};
+  return nextMatch($("tWeekday").value||s.weekday||"일",s.weeksOfMonth||[2,4],$("timeFrom").value||"11:00");
+}
+const ymd=(d)=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const md=(d)=>`${d.getMonth()+1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`;
+function refreshWhen(){
+  if(!cfg) return;
+  const o=(cfg.watch||{}).openAt||{};
+  const d=nextMatch(o.weekday||"토",o.weeksOfMonth||[1,3],$("oTime").value||o.time);
+  if(!d){ $("when-big").textContent="—"; return; }
+  const days=Math.ceil((d-kstNow())/86400000);
+  $("when-big").textContent=`${d.getMonth()+1}월 ${d.getDate()}일 (${DOW[d.getDay()]}) ${d.getHours()}시`;
+  $("when-label").textContent=days<=0?"오늘 예약이 열립니다":`다음 예약 오픈 · ${days}일 뒤`;
+  updateTargetLine();
+}
+function updateTargetLine(){
+  if(!cfg) return;
+  const t=targetAfterOpen(); const first=onRooms()[0];
+  const dur=Number($("durationMin").value)||60;
+  const end=t?new Date(t.getTime()+dur*60000):null;
+  $("target-line").innerHTML=t
+    ? `그때 <b>${md(t)} ${pad(t.getHours())}:${pad(t.getMinutes())}~${pad(end.getHours())}:${pad(end.getMinutes())}</b> 자리를 잡습니다`
+      +(first?` · 1순위 <b>${esc(first.name)}</b>`:" · <b>노릴 방이 없습니다</b>")
+    : "";
+  const soon=soonestTarget();
+  $("try-note").textContent=soon
+    ? `지금 누르면 가장 가까운 ${md(soon)} 을 확인합니다. GitHub 에서 돌아가니 내 컴퓨터는 꺼져 있어도 됩니다.`
+    : "GitHub 에서 돌아갑니다. 내 컴퓨터는 꺼져 있어도 됩니다.";
+}
+["oTime","timeFrom","durationMin","tWeekday"].forEach(id=>$(id).addEventListener("change",()=>{refreshWhen();updateTargetLine();}));
+
+/* ── 설정 읽기 ── */
+async function loadConfig(){
+  try{
+    const f=await gh(`/contents/${CONFIG_PATH}?ref=${BRANCH}`);
+    cfgSha=f.sha; cfg=JSON.parse(unb64(f.content));
+    const t=cfg.target||{}, w=cfg.watch||{}, s=cfg.schedule||{};
+    $("timeFrom").value=t.timeFrom||"11:00";
+    $("durationMin").value=t.durationMin||60;
+    $("tWeekday").value=s.weekday||"일";
+    $("oTime").value=(w.openAt||{}).time||"21:00";
+    rooms=(t.rooms||[]).map(r=>{
+      const cap=capOf(r.label);
+      const m=/^(\S+호)/.exec(r.label||"");
+      return { id:r.id, label:r.label, name:m?m[1]:r.id,
+               capText:cap?`${cap.min}~${cap.max}인`:"정원 미상", cap, on:true };
+    });
+    renderRooms(); refreshWhen();
+  }catch(e){
+    $("when-big").textContent="설정을 못 읽었습니다";
+    $("when-label").textContent=e.message;
+  }
+}
+
+/* ── 저장 ── */
+function buildConfig(){
+  const next=JSON.parse(JSON.stringify(cfg));
+  next.schedule=next.schedule||{};
+  next.schedule.weekday=$("tWeekday").value;
+  next.target=next.target||{};
+  next.target.timeFrom=$("timeFrom").value;
+  next.target.durationMin=Number($("durationMin").value);
+  next.target.rooms=onRooms().map(r=>({id:r.id,label:r.label}));
+  next.watch=next.watch||{};
+  next.watch.openAt=Object.assign({},next.watch.openAt,{time:$("oTime").value});
+  return JSON.stringify(next,null,2)+"\n";
+}
+$("btn-save").onclick=async()=>{
+  if(!cfg) return show("m-save","설정을 아직 읽지 못했습니다.","err");
+  const on=onRooms();
+  if(!on.length) return show("m-save","노릴 방이 없습니다. 인원을 확인하거나 방을 체크하세요.","err");
+  show("m-save","저장하는 중…","wait");
+  try{
+    const r=await gh(`/contents/${CONFIG_PATH}`,{ method:"PUT", body:JSON.stringify({
+      message:`예약 설정 변경 — ${$("people").value}명, ${on.length}곳 (${on.map(x=>x.name).join(", ")})`,
+      content:b64(buildConfig()), sha:cfgSha, branch:BRANCH })});
+    cfgSha=r.content.sha;
+    show("m-save",`저장했습니다.\n다음 오픈부터 ${on[0].name} 부터 순서대로 노립니다.`,"ok");
+  }catch(e){
+    show("m-save","저장하지 못했습니다: "+e.message+((e.status===403||e.status===404)?"\n토큰에 Contents 쓰기 권한이 있는지 확인하세요.":""),"err");
+  }
+};
+
+/* ── 실행 ── */
+async function dispatch(mode,confirmIt){
+  show("m-run","보내는 중…","wait");
+  const inputs={ mode, job:CONFIG_PATH, confirm:confirmIt?"true":"false",
+                 time:$("timeFrom").value, duration:String($("durationMin").value) };
+  const t=soonestTarget();
+  if(t) inputs.date=ymd(t);
+  try{
+    await gh(`/actions/workflows/${WORKFLOW}/dispatches`,{ method:"POST",
+      body:JSON.stringify({ ref:BRANCH, inputs })});
+    show("m-run","보냈습니다. 아래에 결과가 나옵니다 (보통 1~2분).","ok");
+    setTimeout(loadRuns,5000); setTimeout(loadRuns,20000);
+  }catch(e){
+    show("m-run","실행하지 못했습니다: "+e.message+((e.status===403||e.status===404)?"\n토큰에 Actions 쓰기 권한이 있는지 확인하세요.":""),"err");
+  }
+}
+$("btn-check").onclick=()=>dispatch("check",false);
+$("btn-dry").onclick=()=>dispatch("book",false);
+$("btn-book").onclick=()=>{
+  const first=onRooms()[0];
+  if(!first) return show("m-run","노릴 방이 없습니다.","err");
+  const t=soonestTarget();
+  $("confirmText").textContent=
+    `${t?md(t):"다음 예약일"} ${$("timeFrom").value} — ${first.name} 부터 순서대로 실제 예약합니다.`;
+  $("confirmBox").hidden=false;
+};
+$("btn-yes").onclick=()=>{ $("confirmBox").hidden=true; dispatch("book",true); };
+$("btn-no").onclick=()=>{ $("confirmBox").hidden=true; show("m-run","취소했습니다. 예약되지 않았습니다.","wait"); };
+
+/* ── 최근 실행 ── */
+function kstText(iso){ const d=new Date(iso); const k=new Date(d.getTime()+(9*60+d.getTimezoneOffset())*60000);
+  return `${k.getMonth()+1}/${k.getDate()} ${pad(k.getHours())}:${pad(k.getMinutes())}`; }
+async function loadRuns(){
+  try{
+    const d=await gh(`/actions/workflows/${WORKFLOW}/runs?per_page=3`);
+    const runs=d.workflow_runs||[];
+    $("runs").innerHTML=runs.map(r=>{
+      const st=r.status!=="completed"?["run","도는 중"]
+        :r.conclusion==="success"?["ok","성공"]
+        :r.conclusion==="cancelled"?["","취소"]:["err","실패"];
+      return `<div class="result"><span class="tag ${st[0]}">${st[1]}</span>
+        <span>${kstText(r.created_at)} · ${r.event==="schedule"?"자동":"직접"}</span>
+        <a href="${esc(r.html_url)}" target="_blank" rel="noopener">자세히 →</a></div>`;
+    }).join("");
+  }catch(_){ /* 조용히 넘어갑니다 */ }
+}
+
+/* ── Secret ── */
+$("btn-secret").onclick=async()=>{
+  const v=JSON.stringify({ name:$("v-name").value, reason:$("v-reason").value,
+    count:$("people").value, phone:$("v-phone").value, memo:"" });
+  try{ await navigator.clipboard.writeText(v); $("btn-secret").textContent="복사됐습니다"; }
+  catch(_){ $("btn-secret").textContent=v; }
+  setTimeout(()=>($("btn-secret").textContent="값 만들어서 복사"),2200);
+};
+
+/* ── 토큰 ── */
+function applyToken(ok){
+  ["btn-save","btn-check","btn-dry","btn-book"].forEach(id=>$(id).disabled=!ok);
+  $("setup").hidden=ok; $("tokendet").hidden=!ok;
+}
+async function connect(quiet){
+  token=$("token").value.trim();
+  if(!token){ applyToken(false); return; }
+  try{
+    await gh("");
+    store(TOKEN_KEY,token); applyToken(true); loadRuns();
+    if(!quiet) show("m-run","연결됐습니다. 이제 아래 버튼을 쓸 수 있습니다.","ok");
+  }catch(e){
+    token=""; applyToken(false);
+    if(!quiet) show("m-run","연결하지 못했습니다: "+e.message,"err");
+  }
+}
+$("btn-connect").onclick=()=>connect(false);
+$("btn-forget").onclick=()=>{ token=""; $("token").value=""; store(TOKEN_KEY,null); applyToken(false); };
+
+/* ── 시작 ── */
+applyToken(false);
+const saved=load(TOKEN_KEY);
+if(saved){ $("token").value=saved; connect(true); }
+loadConfig();
+loadRuns();
+</script>
+</body>
+</html>
