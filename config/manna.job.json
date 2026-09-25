@@ -3,20 +3,27 @@
   "//adapter": "만나교회 사이트 셀렉터. inspect 로 채워야 합니다.",
   "adapter": "config/manna.profile.json",
   "target": {
-    "dates": [
-      "2026-09-30"
-    ],
+    "dates": [],
     "//rooms": "본관 3층. 목록에서 코드와 정원을 모두 확인했습니다. 적힌 순서대로 확인해 먼저 비어 있는 곳 하나를 잡습니다. 정원이 방마다 달라 인원수에 안 맞는 방은 빼는 편이 좋습니다.",
     "//codes": "장소예약 목록에서 확인된 코드들입니다. 어느 코드가 311~318 인지는 아직 미확인이라 label 이 TODO 입니다.",
     "rooms": [
       {
         "id": "28",
         "label": "312호 (6~10인)"
+      },
+      {
+        "id": "24",
+        "label": "316호 (1~5인)"
+      },
+      {
+        "id": "22",
+        "label": "318호 (1~5인)"
       }
     ],
     "//time": "오전 11시~12시 1시간. 30분 칸 사이트라 11시·11시30분 두 칸을 함께 체크합니다.",
     "timeFrom": "11:00",
-    "durationMin": 60
+    "durationMin": 60,
+    "people": 8
   },
   "watch": {
     "//openAt": "예약 오픈: 첫째주·셋째주 토요일 오후 9시 (예약일 8일 전)",
@@ -45,5 +52,16 @@
     "maxConsecutiveErrors": 5,
     "//maxWaitMin": "GitHub Actions 는 매주 토요일에 깨어납니다. 오픈 주차(첫째·셋째)가 아니면 다음 오픈이 한참 뒤라 이 한도를 넘어 곧바로 끝냅니다.",
     "maxWaitMin": 90
+  },
+  "schedule": {
+    "monthsAhead": 2,
+    "weekday": "일",
+    "weeksOfMonth": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
   }
 }
