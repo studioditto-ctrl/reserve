@@ -66,6 +66,30 @@ h1{font-family:"Gowun Batang",serif; font-size:24px; margin:0 0 20px; letter-spa
 .card h2{font-size:15px; font-weight:700; margin:0 0 4px}
 .card .note{margin:0 0 16px; font-size:13px; color:var(--ink-3)}
 
+/* ── 모드 토글 ── */
+.seg{display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:5px;
+  background:var(--sunk); border:1px solid var(--line); border-radius:13px; margin-bottom:16px}
+.seg button{border:0; background:transparent; padding:11px 8px; border-radius:9px;
+  font:inherit; font-size:14px; font-weight:700; color:var(--ink-3); cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface); color:var(--accent-ink);
+  box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.seg button .s{display:block; font-size:11px; font-weight:400; opacity:.8; margin-top:1px}
+
+/* ── 날짜 목록 ── */
+.dateadd{display:flex; gap:8px; align-items:center}
+.dateadd input{flex:1}
+.dateadd button{flex:none; width:46px; height:42px; font-size:20px; border-radius:10px;
+  border:1px solid var(--line-2); background:var(--surface); color:var(--ink); cursor:pointer}
+.datelist{display:flex; flex-direction:column; gap:7px; margin-top:10px}
+.dateitem{display:flex; align-items:center; gap:10px; padding:10px 12px;
+  border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line)); border-radius:11px;
+  background:var(--accent-soft); font-weight:500}
+.dateitem.past{background:var(--sunk); border-color:var(--line); opacity:.55; font-weight:400}
+.dateitem .x{margin-left:auto; border:0; background:transparent; cursor:pointer;
+  font-size:17px; color:var(--ink-3); padding:0 4px; line-height:1}
+.dateitem .why{font-size:12px; color:var(--ink-3); font-weight:400}
+.emptynote{font-size:13px; color:var(--ink-3); padding:12px 0}
+
 /* ── 인원 ── */
 .people{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
 .stepper{display:flex; align-items:center; gap:2px; border:1px solid var(--line-2); border-radius:12px; overflow:hidden}
@@ -177,6 +201,48 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
   </ol>
 </div>
 
+<!-- 언제 -->
+<div class="card">
+  <h2>언제 예약할까요</h2>
+  <div class="seg" id="modeseg">
+    <button id="mode-auto" aria-pressed="true">자동<span class="s">정해진 요일마다</span></button>
+    <button id="mode-manual" aria-pressed="false">수동<span class="s">날짜를 직접</span></button>
+  </div>
+
+  <div id="pane-auto">
+    <div class="tiny-row">
+      <div><label for="tWeekday">요일</label>
+        <select id="tWeekday"><option value="일">일요일</option><option value="월">월요일</option><option value="화">화요일</option><option value="수">수요일</option><option value="목">목요일</option><option value="금">금요일</option><option value="토">토요일</option></select></div>
+      <div><label for="repeat">반복</label>
+        <select id="repeat">
+          <option value="12345">매주</option>
+          <option value="13">첫째 · 셋째 주</option>
+          <option value="24">둘째 · 넷째 주</option>
+          <option value="1">첫째 주만</option>
+          <option value="custom">직접 고르기</option>
+        </select></div>
+    </div>
+    <div id="weekpick" hidden>
+      <label style="display:block; font-size:12px; color:var(--ink-3); margin:10px 0 4px">몇째 주</label>
+      <div class="weeks" id="tWeeks"></div>
+    </div>
+  </div>
+
+  <div id="pane-manual" hidden>
+    <label for="newdate" style="display:block; font-size:12px; color:var(--ink-3); margin-bottom:5px">날짜 추가</label>
+    <div class="dateadd">
+      <input type="date" id="newdate">
+      <button id="btn-adddate" aria-label="날짜 추가">＋</button>
+    </div>
+    <div class="datelist" id="datelist"></div>
+  </div>
+
+  <div class="tiny-row" style="margin-top:14px">
+    <div><label for="timeFrom">시작 시각</label><input type="time" id="timeFrom" step="1800"></div>
+    <div><label for="durationMin">길이 (분)</label><input type="number" id="durationMin" min="30" step="30"></div>
+  </div>
+</div>
+
 <!-- 인원 -->
 <div class="card">
   <h2>몇 명이 모이나요</h2>
@@ -234,16 +300,12 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
   <div class="msg" id="m-save" hidden></div>
 
   <details>
-    <summary>시간·요일 바꾸기</summary>
+    <summary>사이트가 열리는 시각</summary>
     <div class="tiny-row">
-      <div><label for="timeFrom">시작 시각</label><input type="time" id="timeFrom" step="1800"></div>
-      <div><label for="durationMin">길이 (분)</label><input type="number" id="durationMin" min="30" step="30"></div>
-    </div>
-    <div class="tiny-row">
-      <div><label for="tWeekday">예약 요일</label>
-        <select id="tWeekday"><option>일</option><option>월</option><option>화</option><option>수</option><option>목</option><option>금</option><option>토</option></select></div>
       <div><label for="oTime">오픈 시각</label><input type="time" id="oTime"></div>
+      <div></div>
     </div>
+    <p class="note" style="margin-top:10px">만나교회는 첫째·셋째 토요일 밤 9시에 8일 뒤 자리를 엽니다. 바꿀 일은 거의 없습니다.</p>
   </details>
 
   <details>
@@ -283,6 +345,8 @@ const esc=(v)=>String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g
 const pad=(n)=>String(n).padStart(2,"0");
 
 let token="", cfg=null, cfgSha="", rooms=[];
+let mode="auto";          // "auto" = 정해진 요일마다 · "manual" = 날짜를 직접
+let manualDates=[];       // ["2026-10-11", ...] 오름차순
 
 function store(k,v){ try{ v===null?localStorage.removeItem(k):localStorage.setItem(k,v); }catch(_){} }
 function load(k){ try{ return localStorage.getItem(k)||""; }catch(_){ return ""; } }
@@ -344,6 +408,66 @@ $("rooms").addEventListener("change",(e)=>{
 });
 function onRooms(){ const n=Number($("people").value)||1; return rooms.filter(r=>r.on&&fits(r,n)); }
 
+/* ── 모드 ── */
+function setMode(m, silent){
+  mode = m;
+  $("mode-auto").setAttribute("aria-pressed", String(m==="auto"));
+  $("mode-manual").setAttribute("aria-pressed", String(m==="manual"));
+  $("pane-auto").hidden = m!=="auto";
+  $("pane-manual").hidden = m!=="manual";
+  if (m==="manual" && !manualDates.length && !silent){
+    const t=soonestAuto(); if(t) addDate(ymd(t));   // 첫 진입이면 가까운 날 하나를 넣어 준다
+  }
+  renderDates(); refreshWhen(); updateTargetLine();
+}
+$("mode-auto").onclick   = ()=>setMode("auto");
+$("mode-manual").onclick = ()=>setMode("manual");
+
+/* ── 반복 ── */
+function weekChips(checked){
+  $("tWeeks").innerHTML=[1,2,3,4,5].map(n=>
+    `<label><input type="checkbox" value="${n}"${checked.includes(n)?" checked":""}>${n}째</label>`).join("");
+}
+function weeksFromUI(){
+  const v=$("repeat").value;
+  if(v==="custom") return [...$("tWeeks").querySelectorAll("input:checked")].map(i=>+i.value);
+  return v.split("").map(Number);
+}
+function repeatFromWeeks(w){
+  const k=[...w].sort().join("");
+  return ["12345","13","24","1"].includes(k) ? k : "custom";
+}
+$("repeat").onchange=()=>{
+  $("weekpick").hidden = $("repeat").value!=="custom";
+  if($("repeat").value==="custom" && !$("tWeeks").children.length) weekChips([2,4]);
+  refreshWhen(); updateTargetLine();
+};
+$("tWeeks").addEventListener("change",()=>{refreshWhen();updateTargetLine();});
+
+/* ── 수동 날짜 ── */
+function addDate(v){
+  if(!v || manualDates.includes(v)) return;
+  manualDates.push(v); manualDates.sort();
+  renderDates(); updateTargetLine();
+}
+function renderDates(){
+  if(mode!=="manual") return;
+  const today=ymd(kstNow());
+  $("datelist").innerHTML = manualDates.length ? manualDates.map(d=>{
+    const dt=new Date(d+"T00:00:00"), past=d<today;
+    return `<div class="dateitem ${past?"past":""}">
+      <span>${md(dt)}</span>${past?'<span class="why">지난 날짜</span>':""}
+      <button class="x" data-rm="${d}" aria-label="${d} 빼기">✕</button></div>`;
+  }).join("") : `<p class="emptynote">날짜를 하나 이상 추가하세요.</p>`;
+}
+$("datelist").addEventListener("click",(e)=>{
+  const b=e.target.closest("[data-rm]"); if(!b) return;
+  manualDates=manualDates.filter(d=>d!==b.dataset.rm);
+  renderDates(); updateTargetLine();
+});
+$("btn-adddate").onclick=()=>{ addDate($("newdate").value); $("newdate").value=""; };
+$("newdate").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); $("btn-adddate").click(); }});
+
 /* ── 인원 ── */
 function setPeople(n){
   $("people").value=Math.min(30,Math.max(1,n));
@@ -366,19 +490,31 @@ function nextMatch(weekday,weeks,hhmm,after){
   }
   return null;
 }
-/* 자동 예약이 노릴 날 = 다음 오픈 직후의 첫 예약일 */
+/* 자동 모드의 반복 일정에서 가장 가까운 날 */
+function soonestAuto(after){
+  return nextMatch($("tWeekday").value||"일", weeksFromUI(), $("timeFrom").value||"11:00", after);
+}
+/* 수동 모드에서 아직 지나지 않은 첫 날 */
+function soonestManual(after){
+  const from=after||kstNow();
+  const [h,m]=($("timeFrom").value||"11:00").split(":").map(Number);
+  for(const d of manualDates){
+    const t=new Date(d+"T00:00:00"); t.setHours(h,m,0,0);
+    if(t>from) return t;
+  }
+  return null;
+}
+/* 다음 오픈 직후에 잡게 될 날 */
 function targetAfterOpen(){
   if(!cfg) return null;
-  const o=(cfg.watch||{}).openAt||{}, s=cfg.schedule||{};
+  const o=(cfg.watch||{}).openAt||{};
   const open=nextMatch(o.weekday||"토",o.weeksOfMonth||[1,3],$("oTime").value||o.time);
   if(!open) return null;
-  return nextMatch($("tWeekday").value||s.weekday||"일",s.weeksOfMonth||[2,4],$("timeFrom").value||"11:00",open);
+  return mode==="manual" ? soonestManual(open) : soonestAuto(open);
 }
 /* 지금 눌렀을 때 확인할 날 = 가장 가까운 예약일 */
 function soonestTarget(){
-  if(!cfg) return null;
-  const s=cfg.schedule||{};
-  return nextMatch($("tWeekday").value||s.weekday||"일",s.weeksOfMonth||[2,4],$("timeFrom").value||"11:00");
+  return mode==="manual" ? soonestManual() : soonestAuto();
 }
 const ymd=(d)=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const md=(d)=>`${d.getMonth()+1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`;
@@ -400,7 +536,9 @@ function updateTargetLine(){
   $("target-line").innerHTML=t
     ? `그때 <b>${md(t)} ${pad(t.getHours())}:${pad(t.getMinutes())}~${pad(end.getHours())}:${pad(end.getMinutes())}</b> 자리를 잡습니다`
       +(first?` · 1순위 <b>${esc(first.name)}</b>`:" · <b>노릴 방이 없습니다</b>")
-    : "";
+    : (mode==="manual"
+        ? (manualDates.length ? "지정한 날짜가 모두 지났습니다." : "<b>날짜를 아직 안 정하셨습니다.</b>")
+        : "");
   const soon=soonestTarget();
   $("try-note").textContent=soon
     ? `지금 누르면 가장 가까운 ${md(soon)} 을 확인합니다. GitHub 에서 돌아가니 내 컴퓨터는 꺼져 있어도 됩니다.`
@@ -416,8 +554,22 @@ async function loadConfig(){
     const t=cfg.target||{}, w=cfg.watch||{}, s=cfg.schedule||{};
     $("timeFrom").value=t.timeFrom||"11:00";
     $("durationMin").value=t.durationMin||60;
-    $("tWeekday").value=s.weekday||"일";
     $("oTime").value=(w.openAt||{}).time||"21:00";
+
+    // schedule 이 있으면 자동, 없으면 지정 날짜를 쓰는 수동
+    if(cfg.schedule){
+      $("tWeekday").value=s.weekday||"일";
+      const wk=s.weeksOfMonth||[2,4];
+      $("repeat").value=repeatFromWeeks(wk);
+      weekChips(wk);
+      $("weekpick").hidden=$("repeat").value!=="custom";
+      manualDates=[];
+      setMode("auto", true);
+    }else{
+      $("tWeekday").value="일"; $("repeat").value="24"; weekChips([2,4]);
+      manualDates=[...(t.dates||[])].sort();
+      setMode("manual", true);
+    }
     rooms=(t.rooms||[]).map(r=>{
       const cap=capOf(r.label);
       const m=/^(\S+호)/.exec(r.label||"");
@@ -434,12 +586,22 @@ async function loadConfig(){
 /* ── 저장 ── */
 function buildConfig(){
   const next=JSON.parse(JSON.stringify(cfg));
-  next.schedule=next.schedule||{};
-  next.schedule.weekday=$("tWeekday").value;
   next.target=next.target||{};
   next.target.timeFrom=$("timeFrom").value;
   next.target.durationMin=Number($("durationMin").value);
   next.target.rooms=onRooms().map(r=>({id:r.id,label:r.label}));
+
+  if(mode==="auto"){
+    // 반복 일정. target.dates 는 비워 두면 일정에서 계산된다.
+    next.schedule=Object.assign({monthsAhead:2}, next.schedule, {
+      weekday:$("tWeekday").value, weeksOfMonth:weeksFromUI(),
+    });
+    next.target.dates=[];
+  }else{
+    // 지정한 날짜만. schedule 이 없어야 target.dates 를 그대로 쓴다.
+    delete next.schedule; delete next["//schedule"];
+    next.target.dates=[...manualDates].sort();
+  }
   next.watch=next.watch||{};
   next.watch.openAt=Object.assign({},next.watch.openAt,{time:$("oTime").value});
   return JSON.stringify(next,null,2)+"\n";
@@ -448,13 +610,16 @@ $("btn-save").onclick=async()=>{
   if(!cfg) return show("m-save","설정을 아직 읽지 못했습니다.","err");
   const on=onRooms();
   if(!on.length) return show("m-save","노릴 방이 없습니다. 인원을 확인하거나 방을 체크하세요.","err");
+  if(mode==="manual" && !manualDates.length) return show("m-save","날짜를 하나 이상 추가하세요.","err");
   show("m-save","저장하는 중…","wait");
   try{
     const r=await gh(`/contents/${CONFIG_PATH}`,{ method:"PUT", body:JSON.stringify({
-      message:`예약 설정 변경 — ${$("people").value}명, ${on.length}곳 (${on.map(x=>x.name).join(", ")})`,
+      message:`예약 설정 변경 — ${mode==="auto"?`자동 ${$("tWeekday").value}요일`:`수동 ${manualDates.length}일`}, ${$("people").value}명, ${on.map(x=>x.name).join(", ")}`,
       content:b64(buildConfig()), sha:cfgSha, branch:BRANCH })});
     cfgSha=r.content.sha;
-    show("m-save",`저장했습니다.\n다음 오픈부터 ${on[0].name} 부터 순서대로 노립니다.`,"ok");
+    const t=targetAfterOpen();
+    show("m-save",`저장했습니다.\n${mode==="auto"?`${$("tWeekday").value}요일 ${$("repeat").options[$("repeat").selectedIndex].text}`:`지정한 ${manualDates.length}일`} · ${on[0].name} 부터 순서대로 노립니다.`
+      +(t?`\n다음: ${md(t)}`:""),"ok");
   }catch(e){
     show("m-save","저장하지 못했습니다: "+e.message+((e.status===403||e.status===404)?"\n토큰에 Contents 쓰기 권한이 있는지 확인하세요.":""),"err");
   }
