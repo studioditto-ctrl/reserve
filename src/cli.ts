@@ -9,7 +9,7 @@ import { loadAdapter } from './adapters/registry.js';
 import { log } from './logger.js';
 import { notify } from './notify/index.js';
 import { watch } from './watcher.js';
-import { isFailure, manualJob, runBookFirst, runCheck, runProbe } from './operations.js';
+import { isFailure, manualJob, reportResult, runBookFirst, runCheck, runProbe } from './operations.js';
 import { startAdminServer } from './admin/server.js';
 import { Scheduler } from './runner.js';
 import { formatReport, inspectPage } from './inspect.js';
@@ -108,7 +108,11 @@ program
     try {
       await ensureLogin(session.page, adapter);
       await session.save();
-      printSlots(await adapter.findSlots(session.page, job.target));
+      const slots = await adapter.findSlots(session.page, job.target);
+      printSlots(slots);
+      reportResult(slots.length
+        ? `빈자리 ${slots.length}건 — ${slots.map((x) => x.label).join(' / ')}`
+        : '조건에 맞는 빈자리가 없습니다.');
     } finally {
       await session.close();
     }
@@ -146,6 +150,12 @@ program
         saveSession: () => session.save(),
       });
       log.info(`감시 종료 (${result.reason})`);
+      reportResult(
+        result.booked ? `예약 완료: ${result.booked.label}`
+        : result.reason === 'deadline' ? '오픈 구간이 끝날 때까지 빈자리를 잡지 못했습니다.'
+        : result.reason === 'errors' ? '오류가 반복돼 감시를 멈췄습니다.'
+        : '감시를 중단했습니다.',
+      );
       if (result.reason === 'errors') process.exitCode = 1;
     } finally {
       await session.close();
@@ -249,6 +259,7 @@ program
     const result = await runBookFirst(job, !opts.confirm);
     const failed = isFailure(result, Boolean(opts.confirm));
     log[result.ok ? 'ok' : failed ? 'error' : 'warn'](result.message);
+    reportResult(result.message);
     if (failed) process.exitCode = 1;
   });
 
