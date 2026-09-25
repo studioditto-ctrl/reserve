@@ -9,7 +9,7 @@ import { loadAdapter } from './adapters/registry.js';
 import { log } from './logger.js';
 import { notify } from './notify/index.js';
 import { watch } from './watcher.js';
-import { manualJob, runBookFirst, runCheck, runProbe } from './operations.js';
+import { isFailure, manualJob, runBookFirst, runCheck, runProbe } from './operations.js';
 import { startAdminServer } from './admin/server.js';
 import { Scheduler } from './runner.js';
 import { formatReport, inspectPage } from './inspect.js';
@@ -247,8 +247,9 @@ program
       return;
     }
     const result = await runBookFirst(job, !opts.confirm);
-    log[result.ok ? 'ok' : 'error'](result.message);
-    if (!result.ok) process.exitCode = 1;
+    const failed = isFailure(result, Boolean(opts.confirm));
+    log[result.ok ? 'ok' : failed ? 'error' : 'warn'](result.message);
+    if (failed) process.exitCode = 1;
   });
 
 program

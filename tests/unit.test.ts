@@ -2,6 +2,7 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import { matchesTarget } from '../src/adapters/profile.js';
 import { inQuietHours } from '../src/watcher.js';
+import { isFailure, noSlotMessage } from '../src/operations.js';
 import type { Slot } from '../src/types.js';
 
 const slot = (over: Partial<Slot> = {}): Slot => ({
@@ -134,4 +135,36 @@ test('오후부터 시작하는 목록도 이른 새벽으로 읽지 않는다',
 
 test('읽을 수 없는 칸은 undefined 로 남긴다', () => {
   assert.deepEqual(asHHMM(['11시', '휴무', '12시']), ['11:00', '?', '12:00']);
+});
+
+/* ── 빈자리 없음은 고장이 아니다 ───────────────────────────── */
+
+test('예행연습에서 빈자리가 없으면 실패로 치지 않는다', () => {
+  assert.equal(isFailure({ ok: false, reason: 'no-slot' }, false), false);
+});
+
+test('예약하라고 시켰는데 빈자리가 없으면 실패다', () => {
+  assert.equal(isFailure({ ok: false, reason: 'no-slot' }, true), true);
+});
+
+test('진짜 오류는 예행연습이어도 실패다', () => {
+  assert.equal(isFailure({ ok: false }, false), true);
+});
+
+test('성공은 어느 쪽이든 실패가 아니다', () => {
+  assert.equal(isFailure({ ok: true }, true), false);
+  assert.equal(isFailure({ ok: true }, false), false);
+});
+
+test('빈자리 없음 메시지에 날짜·요일·시각이 들어간다', () => {
+  const m = noSlotMessage({ dates: ['2026-09-30'], timeFrom: '11:00', durationMin: 60 });
+  assert.match(m, /2026-09-30 \(수\)/);
+  assert.match(m, /11:00/);
+  assert.match(m, /시간표는 정상적으로 열렸습니다/);
+});
+
+test('날짜가 여러 개면 모두 적는다', () => {
+  const m = noSlotMessage({ dates: ['2026-11-15', '2026-12-25'], timeFrom: '11:00' });
+  assert.match(m, /2026-11-15 \(일\)/);
+  assert.match(m, /2026-12-25 \(금\)/);
 });
