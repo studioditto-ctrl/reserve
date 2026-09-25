@@ -20,13 +20,13 @@ on:
         required: true
         default: check
         options:
-          - check      # 지금 빈자리만 조회
+          - check      # 빈자리 조회 (날짜를 넣으면 그 날짜를 시험)
           - probe      # 어느 날짜에 시간표가 뜨는지 훑어보기 (예약 안 함)
           - dryrun     # 신청 직전까지 예행연습
           - book       # 지정한 날짜를 지금 예약
           - watch      # 오픈까지 기다렸다 예약 (자동과 동일)
       date:
-        description: '날짜 (YYYY-MM-DD). book 은 예약할 날, probe 는 훑기 시작할 날'
+        description: '날짜 (YYYY-MM-DD). check·book 은 그 날짜, probe 는 훑기 시작할 날. check 에서 비우면 다음 예약일'
         type: string
         required: false
       days:
@@ -39,7 +39,7 @@ on:
         type: string
         required: false
       time:
-        description: '시작 시각 (HH:MM). 비우면 작업 설정을 씁니다'
+        description: '시작 시각 (HH:MM). check·book 에서 씁니다. 비우면 작업 설정(11:00)'
         type: string
         required: false
       duration:
@@ -118,7 +118,18 @@ jobs:
 
           case "$MODE" in
             check)
-              npx tsx src/cli.ts check "$JOB"
+              # 날짜를 비우면 작업 일정(둘째·넷째 일요일)의 다음 날짜를 봅니다.
+              # 날짜를 넣으면 그 날짜만 봅니다 — 다른 날이 되는지 시험할 때 씁니다.
+              DATE="${{ inputs.date }}"
+              if [ -n "$DATE" ]; then
+                ARGS=""
+                [ -n "${{ inputs.time }}" ] && ARGS="$ARGS --time ${{ inputs.time }}"
+                [ -n "${{ inputs.duration }}" ] && ARGS="$ARGS --duration ${{ inputs.duration }}"
+                # shellcheck disable=SC2086
+                npx tsx src/cli.ts book-now "$DATE" "$JOB" $ARGS --check
+              else
+                npx tsx src/cli.ts check "$JOB"
+              fi
               ;;
             probe)
               ARGS="--days ${{ inputs.days || '14' }}"
