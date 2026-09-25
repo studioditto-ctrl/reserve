@@ -62,6 +62,22 @@ export function upcomingDates(sched: RecurringSchedule, from: Date = new Date())
   return [...new Set(out)].sort();
 }
 
+/**
+ * 이미 열린 날짜만 남기고, 가장 먼 날부터 돌려줍니다.
+ *
+ * 예약 사이트는 오픈 시각에 `leadDays` 뒤의 날짜를 엽니다 (만나교회는 8일).
+ * 그래서 오픈 순간에 **막 열린 날은 가장 먼 날**이고, 그보다 가까운 날들은
+ * 지난 회차에 이미 열려 진작 나간 자리입니다.
+ *
+ * 이 정렬이 없으면 `maxDates: 1` 이 "가장 가까운 날" 을 골라, 토요일 9시에
+ * 막 열린 다음주 일요일 대신 **내일 일요일** 을 잡으려 듭니다.
+ */
+export function openedDates(dates: string[], leadDays: number, from: Date = new Date()): string[] {
+  const limit = new Date(from.getFullYear(), from.getMonth(), from.getDate() + leadDays);
+  const max = toDateString(limit);
+  return dates.filter((d) => d <= max).sort().reverse();
+}
+
 /** 다음 예약 오픈 시각. 이미 지난 오픈은 건너뜁니다. */
 export function nextOpenAt(sched: OpenSchedule, from: Date = new Date()): Date | undefined {
   const weekday = parseWeekday(sched.weekday);

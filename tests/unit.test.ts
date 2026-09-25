@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
 import { matchesTarget } from '../src/adapters/profile.js';
 import { inQuietHours } from '../src/watcher.js';
-import { isFailure, noSlotMessage } from '../src/operations.js';
+import { isFailure, noSlotMessage, resolveDates } from '../src/operations.js';
 import type { Slot } from '../src/types.js';
 
 const slot = (over: Partial<Slot> = {}): Slot => ({
@@ -44,7 +44,7 @@ test('조용한 시간대는 자정을 넘겨도 올바르게 판정한다', () 
 });
 
 // ── 반복 일정 계산 ────────────────────────────────────────
-import { nextOpenAt, nthWeekdayOfMonth, parseWeekday, toDateString, upcomingDates } from '../src/schedule.js';
+import { nextOpenAt, nthWeekdayOfMonth, openedDates, parseWeekday, toDateString, upcomingDates } from '../src/schedule.js';
 
 test('요일 표기는 한글과 영문을 모두 받는다', () => {
   assert.equal(parseWeekday('토'), 6);
@@ -105,6 +105,50 @@ test('오픈(첫째·셋째주 토) 시각마다 노릴 날짜(둘째·넷째주
     assert.equal(upcomingDates(target, at)[0], targetDay, `${openDay} 오픈 → ${targetDay}`);
     cursor = new Date(at.getTime() + 60_000);
   }
+});
+
+test('매주 일요일로 잡아도 오픈 때 노리는 날은 8일 뒤다', () => {
+  // weeksOfMonth 가 [2,4] 일 때는 "가장 가까운 날" 이 마침 8일 뒤였지만,
+  // 매주로 바꾸면 내일 일요일이 먼저 걸린다. leadDays 가 그걸 걸러낸다.
+  const every = { weekday: '일', weeksOfMonth: [1, 2, 3, 4, 5], monthsAhead: 2 };
+  const openDay = new Date(2026, 9, 3, 21, 0); // 2026-10-03 (토) 21:00
+  const upcoming = upcomingDates(every, openDay);
+
+  assert.equal(upcoming[0], '2026-10-04', '거르지 않으면 내일 일요일이 먼저다');
+  assert.equal(openedDates(upcoming, 8, openDay)[0], '2026-10-11', '막 열린 날은 8일 뒤다');
+});
+
+test('leadDays 는 아직 안 열린 날을 빼고 먼 날부터 돌려준다', () => {
+  const from = new Date(2026, 9, 3); // 2026-10-03
+  const dates = ['2026-10-04', '2026-10-11', '2026-10-18', '2026-10-25'];
+
+  assert.deepEqual(openedDates(dates, 8, from), ['2026-10-11', '2026-10-04']);
+  assert.deepEqual(openedDates(dates, 0, from), [], '오늘까지만 열렸다면 남는 날이 없다');
+  assert.deepEqual(openedDates([], 8, from), []);
+});
+
+test('resolveDates 는 leadDays 가 있으면 막 열린 날 하나를 고른다', () => {
+  const job = {
+    name: 't', adapter: 'mock',
+    target: { dates: [], rooms: [], timeFrom: '11:00' },
+    schedule: { weekday: '일', weeksOfMonth: [1, 2, 3, 4, 5], monthsAhead: 2 },
+    watch: { leadDays: 8, maxDates: 1 },
+  };
+  const at = new Date(2026, 9, 3, 20, 35); // Actions 가 깨어나는 시각
+  assert.deepEqual(resolveDates(job, at), ['2026-10-11']);
+
+  const { leadDays: _lead, ...noLead } = job.watch;
+  assert.deepEqual(resolveDates({ ...job, watch: noLead }, at), ['2026-10-04'],
+                   'leadDays 가 없으면 예전대로 가까운 날');
+});
+
+test('수동 모드(schedule 없음)는 leadDays 와 무관하게 적은 날짜 그대로다', () => {
+  const job = {
+    name: 't', adapter: 'mock',
+    target: { dates: ['2026-12-25'], rooms: [], timeFrom: '11:00' },
+    watch: { leadDays: 8, maxDates: 1 },
+  };
+  assert.deepEqual(resolveDates(job, new Date(2026, 9, 3)), ['2026-12-25']);
 });
 
 // ── 한국어 시각 라벨 파싱 ──────────────────────────────────
