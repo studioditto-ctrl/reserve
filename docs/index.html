@@ -50,16 +50,6 @@ body{
 
 h1{font-family:"Gowun Batang",serif; font-size:24px; margin:0 0 20px; letter-spacing:-.01em}
 
-/* ── 상태 카드 ── */
-.hero{
-  background:var(--surface); border:1px solid var(--line); border-radius:16px;
-  padding:22px; box-shadow:var(--shadow);
-}
-.when{font-size:13px; color:var(--ink-3); margin:0}
-.big{font-family:"Gowun Batang",serif; font-size:30px; line-height:1.3; margin:4px 0 0; letter-spacing:-.02em}
-.sub{margin:10px 0 0; font-size:14px; color:var(--ink-2)}
-.sub b{color:var(--accent-ink); font-weight:700}
-
 /* ── 블록 ── */
 .card{background:var(--surface); border:1px solid var(--line); border-radius:16px;
   padding:20px; margin-top:14px; box-shadow:var(--shadow)}
@@ -202,13 +192,6 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
 <div class="wrap">
 
 <h1>본관 3층 예약</h1>
-
-<!-- 상태 -->
-<div class="hero">
-  <p class="when" id="when-label">다음 예약 오픈</p>
-  <p class="big" id="when-big">불러오는 중…</p>
-  <p class="sub" id="target-line"></p>
-</div>
 
 <!-- 연결 (토큰 없을 때만) -->
 <div class="setup" id="setup" hidden>
@@ -484,7 +467,7 @@ function setMode(m, silent){
   if (m==="manual" && !manualDates.length && !silent){
     const t=soonestAuto(); if(t) addDate(ymd(t));   // 첫 진입이면 가까운 날 하나를 넣어 준다
   }
-  renderDates(); refreshWhen(); updateTargetLine();
+  renderDates(); updateTargetLine();
 }
 $("mode-auto").onclick   = ()=>setMode("auto");
 $("mode-manual").onclick = ()=>setMode("manual");
@@ -506,9 +489,9 @@ function repeatFromWeeks(w){
 $("repeat").onchange=()=>{
   $("weekpick").hidden = $("repeat").value!=="custom";
   if($("repeat").value==="custom" && !$("tWeeks").children.length) weekChips([2,4]);
-  refreshWhen(); updateTargetLine();
+  updateTargetLine();
 };
-$("tWeeks").addEventListener("change",()=>{refreshWhen();updateTargetLine();});
+$("tWeeks").addEventListener("change",updateTargetLine);
 
 /* ── 수동 날짜 ── */
 function addDate(v){
@@ -570,47 +553,28 @@ function soonestManual(after){
   }
   return null;
 }
-/* 다음 오픈 직후에 잡게 될 날 */
-function targetAfterOpen(){
-  if(!cfg) return null;
-  const o=(cfg.watch||{}).openAt||{};
-  const open=nextMatch(o.weekday||"토",o.weeksOfMonth||[1,3],$("oTime").value||o.time);
-  if(!open) return null;
-  return mode==="manual" ? soonestManual(open) : soonestAuto(open);
-}
 /* 지금 눌렀을 때 확인할 날 = 가장 가까운 예약일 */
 function soonestTarget(){
   return mode==="manual" ? soonestManual() : soonestAuto();
 }
 const ymd=(d)=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const md=(d)=>`${d.getMonth()+1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`;
-function refreshWhen(){
-  if(!cfg) return;
-  const o=(cfg.watch||{}).openAt||{};
-  const d=nextMatch(o.weekday||"토",o.weeksOfMonth||[1,3],$("oTime").value||o.time);
-  if(!d){ $("when-big").textContent="—"; return; }
-  const days=Math.ceil((d-kstNow())/86400000);
-  $("when-big").textContent=`${d.getMonth()+1}월 ${d.getDate()}일 (${DOW[d.getDay()]}) ${d.getHours()}시`;
-  $("when-label").textContent=days<=0?"오늘 예약이 열립니다":`다음 예약 오픈 · ${days}일 뒤`;
-  updateTargetLine();
-}
+/** 지금 누르면 어느 날을 잡는지 한 줄로 알려 줍니다. 항상 "지금" 기준입니다. */
 function updateTargetLine(){
   if(!cfg) return;
-  const t=targetAfterOpen(); const first=onRooms()[0];
+  const t=soonestTarget(), first=onRooms()[0];
   const dur=Number($("durationMin").value)||60;
   const end=t?new Date(t.getTime()+dur*60000):null;
-  $("target-line").innerHTML=t
-    ? `그때 <b>${md(t)} ${pad(t.getHours())}:${pad(t.getMinutes())}~${pad(end.getHours())}:${pad(end.getMinutes())}</b> 자리를 잡습니다`
-      +(first?` · 1순위 <b>${esc(first.name)}</b>`:" · <b>노릴 방이 없습니다</b>")
+  $("try-note").innerHTML = t
+    ? `<b>${md(t)} ${pad(t.getHours())}:${pad(t.getMinutes())}~${pad(end.getHours())}:${pad(end.getMinutes())}</b>`
+      + (first?` · 1순위 <b>${esc(first.name)}</b>`:" · <b>노릴 방이 없습니다</b>")
+      + " 를 잡습니다. GitHub 에서 돌아가니 내 컴퓨터는 꺼져 있어도 됩니다."
     : (mode==="manual"
-        ? (manualDates.length ? "지정한 날짜가 모두 지났습니다." : "<b>날짜를 아직 안 정하셨습니다.</b>")
-        : "");
-  const soon=soonestTarget();
-  $("try-note").textContent=soon
-    ? `지금 누르면 가장 가까운 ${md(soon)} 을 확인합니다. GitHub 에서 돌아가니 내 컴퓨터는 꺼져 있어도 됩니다.`
-    : "GitHub 에서 돌아갑니다. 내 컴퓨터는 꺼져 있어도 됩니다.";
+        ? (manualDates.length ? "지정한 날짜가 모두 지났습니다. 새 날짜를 넣으세요."
+                              : "<b>날짜를 아직 안 정하셨습니다.</b>")
+        : "잡을 날짜를 정하지 못했습니다.");
 }
-["oTime","timeFrom","durationMin","tWeekday"].forEach(id=>$(id).addEventListener("change",()=>{refreshWhen();updateTargetLine();}));
+["oTime","timeFrom","durationMin","tWeekday"].forEach(id=>$(id).addEventListener("change",updateTargetLine));
 
 /* ── 설정 읽기 ── */
 async function loadConfig(){
@@ -641,10 +605,9 @@ async function loadConfig(){
     // 설정에 저장된 순서가 곧 순위입니다. 모르는 코드는 버립니다.
     const saved=(t.rooms||[]).map(r=>r.id).filter(id=>rooms.some(x=>x.id===id));
     picks=(saved.length?saved:rooms.slice(0,MAX_PICKS).map(r=>r.id)).slice(0,MAX_PICKS);
-    renderRooms(); refreshWhen();
+    renderRooms(); updateTargetLine();
   }catch(e){
-    $("when-big").textContent="설정을 못 읽었습니다";
-    $("when-label").textContent=e.message;
+    $("try-note").textContent="설정을 읽지 못했습니다: "+e.message;
   }
 }
 
@@ -682,7 +645,7 @@ $("btn-save").onclick=async()=>{
       message:`예약 설정 변경 — ${mode==="auto"?`자동 ${$("tWeekday").value}요일`:`수동 ${manualDates.length}일`}, ${$("people").value}명, ${on.map(x=>x.name).join(", ")}`,
       content:b64(buildConfig()), sha:cfgSha, branch:BRANCH })});
     cfgSha=r.content.sha;
-    const t=targetAfterOpen();
+    const t=soonestTarget();
     show("m-save",`저장했습니다.\n${mode==="auto"?`${$("tWeekday").value}요일 ${$("repeat").options[$("repeat").selectedIndex].text}`:`지정한 ${manualDates.length}일`} · ${on[0].name} 부터 순서대로 노립니다.`
       +(t?`\n다음: ${md(t)}`:""),"ok");
   }catch(e){
@@ -693,6 +656,8 @@ $("btn-save").onclick=async()=>{
 /* ── 실행 ── */
 async function dispatch(mode,confirmIt){
   show("m-run","보내는 중…","wait");
+  // 새 실행이 목록에 뜬 것을 알아보려면, 보내기 전의 최신 실행을 기억해 둡니다.
+  const before=await latestRunId();
   const inputs={ mode, job:CONFIG_PATH, confirm:confirmIt?"true":"false",
                  time:$("timeFrom").value, duration:String($("durationMin").value) };
   const t=soonestTarget();
@@ -700,8 +665,8 @@ async function dispatch(mode,confirmIt){
   try{
     await gh(`/actions/workflows/${WORKFLOW}/dispatches`,{ method:"POST",
       body:JSON.stringify({ ref:BRANCH, inputs })});
-    show("m-run","보냈습니다. 아래에 결과가 나옵니다 (보통 1~2분).","ok");
-    setTimeout(loadRuns,5000); setTimeout(loadRuns,20000);
+    show("m-run","보냈습니다. 끝나면 아래에 결과가 나옵니다 (보통 1~2분). 새로고침하지 않으셔도 됩니다.","wait");
+    follow(before);
   }catch(e){
     show("m-run","실행하지 못했습니다: "+e.message+((e.status===403||e.status===404)?"\n토큰에 Actions 쓰기 권한이 있는지 확인하세요.":""),"err");
   }
@@ -735,6 +700,54 @@ async function resultOf(run){
   if(hit) return hit.message;
   const err=(notes||[]).find(a=>a.annotation_level==="failure");
   return err ? err.message : null;
+}
+
+const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+let following=false;
+
+async function latestRunId(){
+  try{
+    const d=await gh(`/actions/workflows/${WORKFLOW}/runs?per_page=1`);
+    const r=(d.workflow_runs||[])[0];
+    return r?r.id:null;
+  }catch(_){ return null; }
+}
+
+/**
+ * 보낸 실행이 끝날 때까지 지켜보다가 결과를 띄웁니다.
+ *
+ * Actions 는 몇 초 뒤에야 목록에 뜨므로, 보내기 전의 최신 id 와 달라지는
+ * 순간을 새 실행으로 봅니다. 끝나면 결과 문장까지 펼칩니다.
+ */
+async function follow(beforeId){
+  if(following) return;
+  following=true;
+  try{
+    let mine=null;
+    for(let i=0;i<150;i++){              // 5초 × 150 = 12분 30초
+      await sleep(5000);
+      let r=null;
+      try{
+        const d=await gh(`/actions/workflows/${WORKFLOW}/runs?per_page=1`);
+        r=(d.workflow_runs||[])[0];
+      }catch(_){ continue; }             // 잠깐 끊겨도 계속 지켜봅니다
+      if(!r) continue;
+      if(!mine){
+        if(beforeId && r.id===beforeId) continue;   // 아직 안 떴습니다
+        mine=r.id;
+        show("m-run","GitHub 에서 예약을 시도하는 중입니다…","wait");
+      }
+      if(r.id!==mine) continue;
+      await loadRuns();
+      if(r.status==="completed"){
+        const text=await resultOf(r).catch(()=>null);
+        show("m-run", text || "끝났습니다. 아래 결과를 보세요.",
+             r.conclusion==="success" ? "ok" : "err");
+        return;
+      }
+    }
+    show("m-run","시간이 오래 걸립니다. 아래 목록에서 확인해 주세요.","wait");
+  } finally { following=false; }
 }
 
 async function loadRuns(){
