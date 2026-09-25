@@ -97,6 +97,12 @@ h1{font-family:"Gowun Batang",serif; font-size:24px; margin:0 0 20px; letter-spa
   font-size:17px; color:var(--ink-3); padding:0 4px; line-height:1}
 .dateitem .why{font-size:12px; color:var(--ink-3); font-weight:400}
 .emptynote{font-size:13px; color:var(--ink-3); padding:12px 0}
+.datebtns{display:flex; gap:8px; flex-wrap:wrap; margin-top:9px}
+.mini{border:1px solid var(--line); background:var(--card); color:var(--ink-2); cursor:pointer;
+  font:inherit; font-size:12.5px; padding:6px 11px; border-radius:8px}
+.mini:hover{border-color:var(--ink-3); color:var(--ink)}
+.dirtynote{margin-top:10px; color:var(--warn); font-weight:600}
+.big-btn.dirty{box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 35%,transparent)}
 
 /* ── 인원 ── */
 .people{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
@@ -172,9 +178,17 @@ label.sub{display:block; font-size:13px; font-weight:700; color:var(--ink); marg
 .summary{padding:16px; border-radius:13px; background:var(--accent-soft);
   border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line))}
 .summary.empty{background:var(--sunk); border-color:var(--line); color:var(--ink-3)}
+.summary .lab{font-size:11.5px; font-weight:700; letter-spacing:.06em; color:var(--ink-3); margin-bottom:3px}
 .summary .when{font-family:"Gowun Batang",serif; font-size:21px; font-weight:700; letter-spacing:-.01em}
 .summary .rows{margin-top:10px; display:flex; flex-direction:column; gap:5px; font-size:13.5px; color:var(--ink-2)}
 .summary .rows b{color:var(--ink); font-weight:700}
+/* 예약 준비(오픈) 시각 — 언제 로직이 도는지 눈으로 확인하는 줄 */
+.summary .prep{margin-top:11px; padding-top:11px; border-top:1px dashed color-mix(in srgb,var(--accent) 45%,var(--line));
+  font-size:13.5px; color:var(--ink-2)}
+.summary .prep b{color:var(--ink); font-weight:700}
+.summary .prep .ago{color:var(--ink-3)}
+.summary .now{margin-top:11px; padding-top:11px; border-top:1px dashed var(--line); font-size:13px; color:var(--ink-3)}
+.summary .now b{color:var(--ink-2); font-weight:700}
 
 /* ── 진행상황 ── */
 .steps{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:0}
@@ -292,6 +306,11 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
       <button id="btn-adddate" aria-label="날짜 추가">＋</button>
     </div>
     <div class="datelist" id="datelist"></div>
+    <div class="datebtns">
+      <button class="mini" id="btn-clearpast" hidden></button>
+      <button class="mini" id="btn-cleardates" hidden>모두 지우기</button>
+    </div>
+    <p class="note dirtynote" id="dirtynote" hidden>날짜를 바꿨습니다. <b>STEP 2 의 「이 설정 저장」</b> 을 눌러야 실제로 지워집니다.</p>
   </div>
 
   <div class="tiny-row" style="margin-top:14px">
@@ -303,7 +322,7 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
     <summary>사이트가 열리는 시각</summary>
     <div class="tiny-row">
       <div><label for="oTime">오픈 시각</label><input type="time" id="oTime"></div>
-      <div></div>
+      <div><label for="oLead">며칠 뒤가 열리나요</label><input type="number" id="oLead" min="1" max="60" step="1" value="8"></div>
     </div>
     <p class="note" style="margin-top:10px">만나교회는 첫째·셋째 토요일 밤 9시에 8일 뒤 자리를 엽니다. 바꿀 일은 거의 없습니다.</p>
   </details>
@@ -378,6 +397,8 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
     </div>
   </div>
 
+  <p class="note" id="progress-idle">예약하기를 누르면 여기에 진행상황이 단계별로 나옵니다.</p>
+
   <div id="progress" hidden>
     <label class="sub">진행상황</label>
     <ol class="steps" id="steps">
@@ -435,6 +456,22 @@ const pad=(n)=>String(n).padStart(2,"0");
 let token="", cfg=null, cfgSha="", rooms=[], picks=[];
 let mode="auto";          // "auto" = 정해진 요일마다 · "manual" = 날짜를 직접
 let manualDates=[];       // ["2026-10-11", ...] 오름차순
+let manualTouched=false;  // 사람이 날짜를 직접 더하거나 지웠는가 (자동으로 채우지 않기 위함)
+
+/**
+ * 저장하지 않은 변경이 있음을 알립니다.
+ *
+ * 날짜를 지워도 저장소의 설정은 그대로라, 새로고침하면 되살아납니다.
+ * 그 어긋남을 눈에 보이게 만듭니다.
+ */
+function markDirty(){
+  $("dirtynote").hidden = mode!=="manual";
+  $("btn-save").classList.add("dirty");
+}
+function clearDirty(){
+  $("dirtynote").hidden = true;
+  $("btn-save").classList.remove("dirty");
+}
 
 function store(k,v){ try{ v===null?localStorage.removeItem(k):localStorage.setItem(k,v); }catch(_){} }
 function load(k){ try{ return localStorage.getItem(k)||""; }catch(_){ return ""; } }
@@ -531,8 +568,10 @@ function setMode(m, silent){
   $("mode-manual").setAttribute("aria-pressed", String(m==="manual"));
   $("pane-auto").hidden = m!=="auto";
   $("pane-manual").hidden = m!=="manual";
-  if (m==="manual" && !manualDates.length && !silent){
-    const t=soonestAuto(); if(t) addDate(ymd(t));   // 첫 진입이면 가까운 날 하나를 넣어 준다
+  // 처음 들어올 때만 가까운 날 하나를 넣어 줍니다.
+  // 직접 지운 뒤에는 넣지 않습니다 — 지운 날이 되살아나 보이기 때문입니다.
+  if (m==="manual" && !manualDates.length && !silent && !manualTouched){
+    const t=soonestAuto(); if(t) addDate(ymd(t));
   }
   renderDates(); updateTargetLine();
 }
@@ -564,23 +603,46 @@ $("tWeeks").addEventListener("change",updateTargetLine);
 function addDate(v){
   if(!v || manualDates.includes(v)) return;
   manualDates.push(v); manualDates.sort();
+  manualTouched=true;
   renderDates(); updateTargetLine();
+}
+function removeDate(v){
+  if(!manualDates.includes(v)) return;
+  manualDates=manualDates.filter(d=>d!==v);
+  manualTouched=true;                 // 다시 채워 넣지 않습니다
+  renderDates(); updateTargetLine();
+  markDirty();
 }
 function renderDates(){
   if(mode!=="manual") return;
   const today=ymd(kstNow());
+  const past=manualDates.filter(d=>d<today);
   $("datelist").innerHTML = manualDates.length ? manualDates.map(d=>{
-    const dt=new Date(d+"T00:00:00"), past=d<today;
-    return `<div class="dateitem ${past?"past":""}">
-      <span>${md(dt)}</span>${past?'<span class="why">지난 날짜</span>':""}
-      <button class="x" data-rm="${d}" aria-label="${d} 빼기">✕</button></div>`;
+    const dt=new Date(d+"T00:00:00"), old=d<today;
+    return `<div class="dateitem ${old?"past":""}">
+      <span>${md(dt)}</span>${old?'<span class="why">지난 날짜</span>':""}
+      <button class="x" data-rm="${d}" aria-label="${md(dt)} 빼기" title="이 날짜 빼기">✕</button></div>`;
   }).join("") : `<p class="emptynote">날짜를 하나 이상 추가하세요.</p>`;
+
+  // 지난 날짜는 잡을 수 없으니 한 번에 치울 수 있게 해 둡니다.
+  $("btn-clearpast").hidden = !past.length;
+  $("btn-clearpast").textContent = `지난 날짜 ${past.length}개 지우기`;
+  $("btn-cleardates").hidden = !manualDates.length;
 }
 $("datelist").addEventListener("click",(e)=>{
   const b=e.target.closest("[data-rm]"); if(!b) return;
-  manualDates=manualDates.filter(d=>d!==b.dataset.rm);
-  renderDates(); updateTargetLine();
+  removeDate(b.dataset.rm);
 });
+$("btn-clearpast").onclick=()=>{
+  const today=ymd(kstNow());
+  manualDates=manualDates.filter(d=>d>=today);
+  manualTouched=true; renderDates(); updateTargetLine(); markDirty();
+};
+$("btn-cleardates").onclick=()=>{
+  if(manualDates.length>1 && !confirm(`날짜 ${manualDates.length}개를 모두 지울까요?`)) return;
+  manualDates=[];
+  manualTouched=true; renderDates(); updateTargetLine(); markDirty();
+};
 $("btn-adddate").onclick=()=>{ addDate($("newdate").value); $("newdate").value=""; };
 $("newdate").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); $("btn-adddate").click(); }});
 
@@ -620,20 +682,74 @@ function soonestManual(after){
   }
   return null;
 }
-/* 지금 눌렀을 때 확인할 날 = 가장 가까운 예약일 */
+/* 사이트가 오픈 시각에 여는 날짜까지의 간격. 만나교회는 8일. */
+function leadDays(){ const n=Number($("oLead").value); return n>0?n:8; }
+
+function openCfg(){
+  const o=(cfg&&cfg.watch&&cfg.watch.openAt)||{};
+  return { weekday:o.weekday||"토", weeks:o.weeksOfMonth||[1,3], time:$("oTime").value||"21:00" };
+}
+/* 다음에 예약 창구가 열리는 시각 (첫째·셋째 토요일 밤 9시) */
+function nextOpen(after){
+  const o=openCfg();
+  return nextMatch(o.weekday, o.weeks, o.time, after);
+}
+/* 직전에 열렸던 시각. 지금 열려 있는 자리가 무엇인지는 여기서 정해집니다. */
+function lastOpen(){
+  const o=openCfg(), wi=DOW.indexOf(o.weekday);
+  const [h,m]=o.time.split(":").map(Number);
+  const now=kstNow();
+  if(wi<0||!o.weeks.length) return null;
+  for(let i=0;i<200;i++){
+    const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i,h,m,0);
+    if(d<=now && d.getDay()===wi && o.weeks.includes(nthWeek(d))) return d;
+  }
+  return null;
+}
+
+/**
+ * 그 오픈이 연 날짜.
+ *
+ * 사이트는 오픈 때 정확히 leadDays 뒤 하루를 엽니다. 그러니 "열려 있는 자리" 는
+ * 오픈 한 번에 하루뿐이고, 그 날이 내 반복 일정에 드는 날일 때만 잡을 수 있습니다.
+ * (토요일이 2주에 한 번 열리면, 일요일을 매주로 적어 두어도 격주로만 열립니다.)
+ */
+function openedBy(open){
+  if(!open) return null;
+  const [h,m]=($("timeFrom").value||"11:00").split(":").map(Number);
+  const want=new Date(open.getFullYear(),open.getMonth(),open.getDate()+leadDays(),h,m,0);
+  const hit=soonestAuto(new Date(want.getTime()-60000));   // 그 날이 반복 일정에 드는가
+  return hit && ymd(hit)===ymd(want) ? want : null;
+}
+
+/* 지금 눌렀을 때 실제로 시도할 날 */
 function soonestTarget(){
-  return mode==="manual" ? soonestManual() : soonestAuto();
+  return mode==="manual" ? soonestManual() : openedBy(lastOpen());
 }
 const ymd=(d)=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const md=(d)=>`${d.getMonth()+1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`;
+const hm=(d)=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/* 두 날짜 사이가 며칠인지 (자정 기준) */
+function daysBetween(a,b){
+  const s=new Date(a.getFullYear(),a.getMonth(),a.getDate());
+  const e=new Date(b.getFullYear(),b.getMonth(),b.getDate());
+  return Math.round((e-s)/86400000);
+}
 /**
- * 지금 누르면 무엇을 예약하게 되는지 한눈에 보여 줍니다.
- * 날짜는 언제나 "지금" 기준으로 가장 가까운 날입니다.
+ * 다음 예약 한 건을 보여 줍니다.
+ *
+ * 두 시각을 나란히 적습니다. 어느 쪽이 언제 도는지 눈으로 확인하기 위함입니다.
+ *  · 예약 일정 — 잡으려는 자리 (일요일 11:00~12:00)
+ *  · 예약 준비 — 그 자리가 열려 Actions 가 실제로 도는 시각 (전주 토요일 21:00)
  */
 function updateTargetLine(){
   if(!cfg) return;
   const box=$("summary");
-  const t=soonestTarget(), live=onRooms();
+  const live=onRooms();
+  const open = mode==="auto" ? nextOpen() : null;         // 다음 오픈 (토 21:00)
+  const auto = open ? openedBy(open) : null;              // 그때 열려서 잡게 될 날
+  const now  = soonestTarget();                           // 지금 누르면 시도할 날
+  const t    = auto || now;                               // 카드의 주인공
   if(!t || !live.length){
     box.className="summary empty";
     box.innerHTML = !t
@@ -648,17 +764,40 @@ function updateTargetLine(){
   const end=new Date(t.getTime()+dur*60000);
   const n=Number($("people").value)||1;
   box.className="summary";
+  // 예약 준비 — 이 시각에 Actions 가 깨어나 자리를 잡습니다.
+  const prep = open && auto
+    ? `<div class="prep">예약 준비 <b>${md(open)} ${hm(open)}</b>
+         <span class="ago">· 예약일 ${daysBetween(open,t)}일 전 · 이때 자동으로 돕니다</span></div>`
+    : `<div class="prep"><span class="ago">수동 모드에서는 자동으로 돌지 않습니다. 아래 버튼으로 직접 잡으세요.</span></div>`;
+
+  // 지금 버튼을 누르면 노릴 날 — 직전 오픈이 연 하루입니다. 위와 다를 수 있습니다.
+  const differs = mode==="auto" && (!now || !auto || ymd(now)!==ymd(auto));
+  const nowLine = !differs ? ""
+    : now ? `<div class="now">지금 예약하기를 누르면 <b>${md(now)} ${hm(now)}</b> — 이미 열려 있는 자리를 시도합니다.</div>`
+          : `<div class="now">지금은 열려 있는 자리가 없습니다. 위 시각에 자동으로 잡습니다.</div>`;
+
+  // 사이트가 2주에 한 번만 열면, 일요일을 매주로 적어 두어도 격주로만 잡힙니다.
+  const perMonth = mode==="auto" ? weeksFromUI().length : 0;
+  const opens = openCfg().weeks.length;
+  const gapLine = perMonth>opens
+    ? `<div class="now">사이트가 ${openCfg().weeks.join("·")}째 ${openCfg().weekday}요일에만 열어,
+         고르신 ${perMonth}번 중 <b>한 달에 ${opens}번</b>만 실제로 잡힙니다.</div>`
+    : "";
+
+  const repeatText=$("repeat").options[$("repeat").selectedIndex].text;
   box.innerHTML=`
-    <div class="when">${md(t)} ${pad(t.getHours())}:${pad(t.getMinutes())}~${pad(end.getHours())}:${pad(end.getMinutes())}</div>
+    <div class="lab">예약 일정</div>
+    <div class="when">${md(t)} ${hm(t)}~${hm(end)}</div>
     <div class="rows">
       <div>모임 인원 <b>${n}명</b></div>
       <div>노릴 순서 <b>${live.map((r,i)=>`${i+1}. ${esc(r.name)}`).join(" → ")}</b></div>
       <div>${mode==="auto"
-            ? `자동 · 매월 ${$("repeat").options[$("repeat").selectedIndex].text} ${$("tWeekday").value}요일`
+            ? `자동 · ${repeatText} ${$("tWeekday").value}요일`
             : `수동 · 지정한 ${manualDates.length}일 중 가장 가까운 날`}</div>
-    </div>`;
+    </div>
+    ${prep}${nowLine}${gapLine}`;
 }
-["oTime","timeFrom","durationMin","tWeekday"].forEach(id=>$(id).addEventListener("change",updateTargetLine));
+["oTime","oLead","timeFrom","durationMin","tWeekday"].forEach(id=>$(id).addEventListener("change",updateTargetLine));
 
 /* ── 설정 읽기 ── */
 async function loadConfig(){
@@ -670,6 +809,8 @@ async function loadConfig(){
     $("timeFrom").value=t.timeFrom||"11:00";
     $("durationMin").value=t.durationMin||60;
     $("oTime").value=(w.openAt||{}).time||"21:00";
+    $("oLead").value=w.leadDays||8;
+    manualTouched=false; clearDirty();
 
     // schedule 이 있으면 자동, 없으면 지정 날짜를 쓰는 수동
     if(cfg.schedule){
@@ -721,6 +862,8 @@ function buildConfig(){
   }
   next.watch=next.watch||{};
   next.watch.openAt=Object.assign({},next.watch.openAt,{time:$("oTime").value});
+  // 오픈 때 열리는 날짜까지의 간격. 이게 있어야 "막 열린 날" 을 고릅니다.
+  next.watch.leadDays=leadDays();
   return JSON.stringify(next,null,2)+"\n";
 }
 $("btn-save").onclick=async()=>{
@@ -734,6 +877,7 @@ $("btn-save").onclick=async()=>{
       message:`예약 설정 변경 — ${mode==="auto"?`자동 ${$("tWeekday").value}요일`:`수동 ${manualDates.length}일`}, ${$("people").value}명, ${on.map(x=>x.name).join(" → ")}`,
       content:b64(buildConfig()), sha:cfgSha, branch:BRANCH })});
     cfgSha=r.content.sha;
+    manualTouched=false; clearDirty();
     const t=soonestTarget();
     show("m-save",`저장했습니다.\n${mode==="auto"?`${$("tWeekday").value}요일 ${$("repeat").options[$("repeat").selectedIndex].text}`:`지정한 ${manualDates.length}일`} · ${on[0].name} 부터 순서대로 노립니다.`
       +(t?`\n다음: ${md(t)}`:""),"ok");
