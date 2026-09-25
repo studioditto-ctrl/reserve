@@ -3,7 +3,7 @@ import { loadAdapter } from './adapters/registry.js';
 import { openSession, snapshot, type Session } from './browser.js';
 import { env, requireCredentials } from './config.js';
 import { log } from './logger.js';
-import { toDateString, upcomingDates } from './schedule.js';
+import { openedDates, toDateString, upcomingDates } from './schedule.js';
 import { watch, type WatchResult } from './watcher.js';
 import type { BookingResult, JobConfig, ProbeResult, RoomRef, SiteAdapter, Slot } from './types.js';
 
@@ -70,10 +70,18 @@ export function noSlotMessage(target: { dates: string[]; timeFrom?: string; dura
     : '조건에 맞는 빈자리가 없습니다.';
 }
 
-/** schedule 이 있으면 대상 날짜를 지금 기준으로 다시 계산합니다. */
-export function resolveDates(job: JobConfig): string[] {
+/**
+ * schedule 이 있으면 대상 날짜를 지금 기준으로 다시 계산합니다.
+ *
+ * watch.leadDays 가 있으면 아직 열리지 않은 날짜를 빼고 **이미 열린 날 중
+ * 가장 먼 날**부터 봅니다. 토요일 밤 9시에 열리는 것은 8일 뒤 일요일이지,
+ * 내일 일요일이 아니기 때문입니다.
+ */
+export function resolveDates(job: JobConfig, now: Date = new Date()): string[] {
   if (!job.schedule) return job.target.dates;
-  const all = upcomingDates(job.schedule);
+  const lead = job.watch?.leadDays;
+  const upcoming = upcomingDates(job.schedule, now);
+  const all = lead && lead > 0 ? openedDates(upcoming, lead, now) : upcoming;
   const max = job.watch?.maxDates;
   return max && max > 0 ? all.slice(0, max) : all;
 }
