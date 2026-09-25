@@ -141,6 +141,44 @@ async function textOf(scope: Locator, selector?: string): Promise<string> {
 }
 
 /** JSON 으로 기술된 단계들을 실행합니다. dryRun 이면 final 단계 직전에 멈춥니다. */
+/**
+ * 체크박스 하나를 체크합니다.
+ *
+ * 예약 사이트들은 진짜 <input type=checkbox> 를 숨기고(opacity:0, width:0)
+ * 옆의 <label> 만 꾸며서 보여주는 경우가 많습니다. 만나교회가 그렇습니다.
+ * 그런 곳에서 Playwright 의 check() 는 "element is not visible" 로 15초를
+ * 기다리다 죽습니다. 사람이 실제로 누르는 것은 label 이므로 label 을 먼저
+ * 누르고, 그래도 안 되면 숨은 input 의 상태를 직접 바꿉니다.
+ */
+async function tickCheckbox(page: Page, box: Locator): Promise<void> {
+  const checked = () => box.isChecked().catch(() => false);
+  if (await checked()) return;
+
+  // 1) for= 로 연결된 label, 2) 감싸고 있는 label — 사람이 누르는 것
+  const id = await box.getAttribute('id').catch(() => null);
+  const targets: Locator[] = [];
+  if (id) targets.push(page.locator(`label[for="${id}"]`).first());
+  targets.push(box.locator('xpath=ancestor::label[1]'));
+
+  for (const target of targets) {
+    await target.click({ timeout: 2000 }).catch(() => undefined);
+    if (await checked()) return;
+  }
+
+  // 3) label 이 없거나 눌러도 안 먹는 경우. 폼은 input 의 checked 만 보므로
+  //    상태를 직접 세우고, 사이트 스크립트가 듣고 있을 이벤트를 함께 쏩니다.
+  await box.evaluate((el) => {
+    const input = el as HTMLInputElement;
+    if (input.checked) return;
+    input.checked = true;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  if (await checked()) return;
+
+  throw new Error('체크박스를 체크하지 못했습니다 (사이트가 막고 있을 수 있습니다)');
+}
+
 async function runSteps(
   page: Page,
   steps: Step[],
@@ -183,7 +221,7 @@ async function runStep(page: Page, step: Step, values?: Record<string, string>):
       await page.locator(must(step.selector)).first().selectOption(value);
       return;
     case 'check':
-      await page.locator(must(step.selector)).first().check();
+      await tickCheckbox(page, page.locator(must(step.selector)).first());
       return;
     case 'press':
       await page.locator(must(step.selector)).first().press(value ?? 'Enter');
@@ -619,7 +657,7 @@ export class ProfileAdapter implements SiteAdapter {
         if (idx < 0 || !cells[idx]!.available) {
           return { ok: false, message: `${want} 칸이 사라졌습니다 (다른 사람이 먼저 잡음): ${slot.label}` };
         }
-        await boxes.nth(idx).check();
+        await tickCheckbox(page, boxes.nth(idx));
       }
 
       const { stoppedBeforeConfirm } = await runSteps(page, book.steps, opts);

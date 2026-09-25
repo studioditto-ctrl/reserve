@@ -175,7 +175,14 @@ const server = createServer(async (req, res) => {
         <input type="checkbox" name="reservation[time]" value="${label}"${free || classOnly ? '' : ' disabled'}>
         ${label}${free || classOnly ? '' : ' <span class="sold-out">예약불가</span>'}</label>`;
     }).join('');
-    return send(res, 200, page(`${room}호 예약`, `<div id="slot-list"><h2>${date} · ${room}호</h2>
+    // MOCK_HIDDEN_CHECKBOX=1 이면 만나교회처럼 진짜 체크박스를 숨기고
+    // 라벨만 보여줍니다. 이러면 Playwright 의 check() 가 "not visible" 로 막힙니다.
+    const hiddenBoxCss = process.env.MOCK_HIDDEN_CHECKBOX === '1'
+      ? `<style>.cb input[type=checkbox]{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+         .cb{display:inline-block;border:1px solid #ccc;padding:6px 10px;margin:2px;cursor:pointer}
+         .cb:has(input:checked){background:#cfe9dd;border-color:#1f6f5c}</style>`
+      : '';
+    return send(res, 200, page(`${room}호 예약`, `${hiddenBoxCss}<div id="slot-list"><h2>${date} · ${room}호</h2>
       <form method="post" action="/cconfirm">
         <input type="hidden" name="date" value="${date}"><input type="hidden" name="room" value="${room}">
         ${rows}
