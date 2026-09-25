@@ -102,12 +102,30 @@ h1{font-family:"Gowun Batang",serif; font-size:24px; margin:0 0 20px; letter-spa
 .stepper input{-moz-appearance:textfield}
 .fitnote{font-size:13px; color:var(--ink-2)}
 
+/* ── 고른 방 ── */
+.picks{display:flex; flex-direction:column; gap:8px; margin-bottom:14px}
+.pick{display:flex; align-items:center; gap:11px; padding:11px 13px; border-radius:12px;
+  background:var(--accent-soft); border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line))}
+.pick .rk{flex:none; width:26px; height:26px; border-radius:50%; display:grid; place-items:center;
+  font-size:12px; font-weight:700; background:var(--accent); color:var(--on-accent)}
+.pick .nm{flex:1; min-width:0; font-weight:500}
+.pick .mv{flex:none; display:flex; gap:4px}
+.pick .mv button{width:32px; height:32px; border-radius:8px; border:1px solid var(--line-2);
+  background:var(--surface); cursor:pointer; font-size:13px; color:var(--ink)}
+.pick .mv button:disabled{opacity:.3; cursor:not-allowed}
+
 /* ── 호실 ── */
 .roomlist{display:flex; flex-direction:column; gap:8px; margin-top:4px}
 .room{
-  display:flex; align-items:center; gap:12px; padding:11px 13px;
+  display:flex; align-items:center; gap:12px; padding:11px 13px; width:100%;
   border:1px solid var(--line); border-radius:12px; background:var(--paper);
+  font:inherit; color:var(--ink); text-align:left; cursor:pointer;
 }
+.room:hover:not(:disabled){border-color:var(--ink-3)}
+.room:disabled{cursor:not-allowed; opacity:.45}
+.room.warn .cap.bad{color:var(--warn)}
+.room .rk{background:var(--sunk); color:var(--ink-3); border:1px solid var(--line-2)}
+.room.on .rk{background:var(--accent); color:var(--on-accent); border-color:var(--accent)}
 .room.on{border-color:color-mix(in srgb,var(--accent) 45%,var(--line)); background:var(--accent-soft)}
 .room.bad{opacity:.5}
 .room .rk{
@@ -152,7 +170,12 @@ button.big-btn .s{display:block; font-size:12px; font-weight:400; opacity:.75; m
 .tag.ok{background:var(--accent-soft); color:var(--accent-ink); border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
 .tag.err{background:var(--warn-soft); color:var(--warn); border-color:color-mix(in srgb,var(--warn) 35%,transparent)}
 .tag.run{background:var(--accent-soft); color:var(--accent-ink); border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
-.result a{color:var(--ink-2); margin-left:auto; font-size:13px}
+.result{flex-direction:column; align-items:stretch; gap:8px}
+.resline{display:flex; align-items:center; gap:10px}
+.result button.link{margin-left:auto; border:0; background:transparent; color:var(--ink-2);
+  font:inherit; font-size:13px; cursor:pointer; text-decoration:underline; padding:2px 0}
+.resmsg{font-size:14px; line-height:1.55; padding:10px 12px; border-radius:9px;
+  background:var(--surface); border:1px solid var(--line); white-space:pre-wrap}
 
 /* ── 연결 / 고급 ── */
 .setup{margin-top:14px; padding:16px; border-radius:14px; background:var(--warn-soft);
@@ -260,7 +283,8 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
 <!-- 호실 -->
 <div class="card">
   <h2>어느 방부터 잡을까요</h2>
-  <p class="note">위에서부터 확인해 먼저 비어 있는 한 곳을 잡습니다.</p>
+  <p class="note">3층 여덟 방 중 <b>세 곳</b>을 고르세요. 고른 순서대로 1·2·3순위가 되고, 1순위가 차 있으면 2순위로 넘어갑니다.</p>
+  <div class="picks" id="picks"></div>
   <div class="roomlist" id="rooms"></div>
 </div>
 
@@ -269,12 +293,8 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
   <h2>해보기</h2>
   <p class="note" id="try-note">GitHub 에서 돌아갑니다. 내 컴퓨터는 꺼져 있어도 됩니다.</p>
   <div class="actions">
-    <button class="big-btn" id="btn-check" disabled>빈자리 보기
-      <span class="s">예약하지 않고 확인만 합니다</span></button>
-    <button class="big-btn" id="btn-dry" disabled>예행연습
-      <span class="s">신청서까지 채우고 마지막 버튼 직전에 멈춥니다</span></button>
     <button class="big-btn warn" id="btn-book" disabled>지금 예약하기
-      <span class="s">되돌릴 수 없습니다</span></button>
+      <span class="s">1순위부터 차례로 시도합니다 · 되돌릴 수 없습니다</span></button>
   </div>
   <div class="msg" id="m-run" hidden></div>
 
@@ -338,13 +358,31 @@ const OWNER="studioditto-ctrl", REPO="reserve", BRANCH="main";
 const CONFIG_PATH="config/manna.job.json", WORKFLOW="reserve.yml";
 const API=`https://api.github.com/repos/${OWNER}/${REPO}`;
 const TOKEN_KEY="reserve_gh_token";
+
+/**
+ * 본관 3층 방 목록. 사이트 내부 코드 ↔ 실제 호실.
+ *
+ * 설정 파일의 target.rooms 는 "고른 3곳" 만 담으므로, 고를 수 있는 전체 목록은
+ * 여기 둡니다. 예전에는 설정에서 읽었는데, 저장할 때 안 고른 방이 파일에서
+ * 지워져 다시 고를 수 없게 됐습니다.
+ */
+const FLOOR3=[
+  { id:"29", name:"311호", cap:{min:11,max:30} },
+  { id:"28", name:"312호", cap:{min:6, max:10} },
+  { id:"27", name:"313호", cap:{min:1, max:5}  },
+  { id:"26", name:"314호", cap:{min:1, max:5}  },
+  { id:"25", name:"315호", cap:{min:1, max:5}  },
+  { id:"24", name:"316호", cap:{min:1, max:5}  },
+  { id:"23", name:"317호", cap:{min:1, max:5}  },
+  { id:"22", name:"318호", cap:{min:1, max:5}  },
+];
 const DOW=["일","월","화","수","목","금","토"];
 
 const $=(id)=>document.getElementById(id);
 const esc=(v)=>String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
 const pad=(n)=>String(n).padStart(2,"0");
 
-let token="", cfg=null, cfgSha="", rooms=[];
+let token="", cfg=null, cfgSha="", rooms=[], picks=[];
 let mode="auto";          // "auto" = 정해진 요일마다 · "manual" = 날짜를 직접
 let manualDates=[];       // ["2026-10-11", ...] 오름차순
 
@@ -376,37 +414,65 @@ function capOf(label){
 const fits=(r,n)=>!r.cap||(n>=r.cap.min&&n<=r.cap.max);
 
 /* ── 호실 ── */
+const MAX_PICKS=3;
+const byId=(id)=>rooms.find(r=>r.id===id);
+/** 고른 방들 — 인원에 안 맞게 된 것은 자동으로 빠집니다. */
+function picked(){ return picks.map(byId).filter(Boolean); }
 function renderRooms(){
   const n=Number($("people").value)||1;
-  let rank=0;
-  $("rooms").innerHTML=rooms.map((r,i)=>{
-    const ok=fits(r,n), on=r.on&&ok;
-    const k=on?++rank:0;
-    return `<div class="room ${on?"on":""} ${ok?"":"bad"}">
-      <input type="checkbox" data-t="${i}" ${r.on?"checked":""} ${ok?"":"disabled"} aria-label="${esc(r.name)}">
-      <span class="rk ${k?"":"none"}">${k||"—"}</span>
+  const live=picked();
+  const liveIds=live.map(r=>r.id);
+
+  // 고른 것: 순위·순서 바꾸기·빼기
+  $("picks").innerHTML = live.length
+    ? live.map((r,i)=>`<div class="pick">
+        <span class="rk">${i+1}</span>
+        <span class="nm">${esc(r.name)} <span class="cap">${esc(r.capText)}</span></span>
+        <span class="mv">
+          <button data-m="${i}" data-d="-1" ${i===0?"disabled":""} aria-label="위로">↑</button>
+          <button data-m="${i}" data-d="1" ${i===live.length-1?"disabled":""} aria-label="아래로">↓</button>
+          <button data-rm="${esc(r.id)}" aria-label="빼기">✕</button>
+        </span></div>`).join("")
+    : `<p class="emptynote">아직 고른 방이 없습니다. 아래에서 눌러 고르세요.</p>`;
+
+  // 고를 수 있는 것
+  const full = live.length >= MAX_PICKS;
+  $("rooms").innerHTML=rooms.map((r)=>{
+    const ok=fits(r,n), on=liveIds.includes(r.id);
+    return `<button type="button" class="room ${on?"on":""} ${ok?"":"warn"}"
+        data-pick="${esc(r.id)}" ${full&&!on?"disabled":""}>
+      <span class="rk ${on?"":"none"}">${on?liveIds.indexOf(r.id)+1:"＋"}</span>
       <span class="nm">${esc(r.name)}
-        <span class="cap ${ok?"":"bad"}">${esc(r.capText)}${ok?"":" · 인원 안 맞음"}</span></span>
-      <span class="mv">
-        <button data-m="${i}" data-d="-1" ${i===0?"disabled":""} aria-label="위로">↑</button>
-        <button data-m="${i}" data-d="1" ${i===rooms.length-1?"disabled":""} aria-label="아래로">↓</button>
-      </span></div>`;
+        <span class="cap ${ok?"":"bad"}">${esc(r.capText)}${ok?"":` · ${n}명은 정원 밖`}</span></span>
+    </button>`;
   }).join("");
-  const usable=rooms.filter(r=>r.on&&fits(r,n)).length;
-  $("fitnote").textContent=usable?`${n}명이 들어갈 수 있는 방 ${usable}곳을 노립니다.`:"이 인원에 맞는 방이 없습니다.";
+
+  const bad=live.filter(r=>!fits(r,n));
+  $("fitnote").textContent = live.length < MAX_PICKS
+    ? `${MAX_PICKS - live.length}곳 더 고를 수 있습니다.`
+    : bad.length ? `${bad.map(r=>r.name).join(", ")} 은 ${n}명 정원이 아닙니다.`
+    : `${n}명 기준으로 세 곳 모두 정원이 맞습니다.`;
   updateTargetLine();
 }
-$("rooms").addEventListener("click",(e)=>{
+$("picks").addEventListener("click",(e)=>{
+  const rm=e.target.closest("[data-rm]");
+  if(rm){ picks=picks.filter(id=>id!==rm.dataset.rm); renderRooms(); return; }
   const mv=e.target.closest("[data-m]"); if(!mv) return;
+  const live=picked().map(r=>r.id);
   const i=+mv.dataset.m, j=i+ +mv.dataset.d;
-  if(j<0||j>=rooms.length) return;
-  [rooms[i],rooms[j]]=[rooms[j],rooms[i]]; renderRooms();
+  if(j<0||j>=live.length) return;
+  [live[i],live[j]]=[live[j],live[i]];
+  picks=live.concat(picks.filter(id=>!live.includes(id)));
+  renderRooms();
 });
-$("rooms").addEventListener("change",(e)=>{
-  const t=e.target.closest("[data-t]"); if(!t) return;
-  rooms[+t.dataset.t].on=t.checked; renderRooms();
+$("rooms").addEventListener("click",(e)=>{
+  const b=e.target.closest("[data-pick]"); if(!b||b.disabled) return;
+  const id=b.dataset.pick;
+  if(picks.includes(id)) picks=picks.filter(x=>x!==id);
+  else if(picked().length<MAX_PICKS) picks.push(id);
+  renderRooms();
 });
-function onRooms(){ const n=Number($("people").value)||1; return rooms.filter(r=>r.on&&fits(r,n)); }
+function onRooms(){ return picked(); }
 
 /* ── 모드 ── */
 function setMode(m, silent){
@@ -570,12 +636,11 @@ async function loadConfig(){
       manualDates=[...(t.dates||[])].sort();
       setMode("manual", true);
     }
-    rooms=(t.rooms||[]).map(r=>{
-      const cap=capOf(r.label);
-      const m=/^(\S+호)/.exec(r.label||"");
-      return { id:r.id, label:r.label, name:m?m[1]:r.id,
-               capText:cap?`${cap.min}~${cap.max}인`:"정원 미상", cap, on:true };
-    });
+    rooms=FLOOR3.map(r=>({ ...r, label:`${r.name} (${r.cap.min}~${r.cap.max}인)`,
+                           capText:`${r.cap.min}~${r.cap.max}인` }));
+    // 설정에 저장된 순서가 곧 순위입니다. 모르는 코드는 버립니다.
+    const saved=(t.rooms||[]).map(r=>r.id).filter(id=>rooms.some(x=>x.id===id));
+    picks=(saved.length?saved:rooms.slice(0,MAX_PICKS).map(r=>r.id)).slice(0,MAX_PICKS);
     renderRooms(); refreshWhen();
   }catch(e){
     $("when-big").textContent="설정을 못 읽었습니다";
@@ -641,8 +706,6 @@ async function dispatch(mode,confirmIt){
     show("m-run","실행하지 못했습니다: "+e.message+((e.status===403||e.status===404)?"\n토큰에 Actions 쓰기 권한이 있는지 확인하세요.":""),"err");
   }
 }
-$("btn-check").onclick=()=>dispatch("check",false);
-$("btn-dry").onclick=()=>dispatch("book",false);
 $("btn-book").onclick=()=>{
   const first=onRooms()[0];
   if(!first) return show("m-run","노릴 방이 없습니다.","err");
@@ -657,6 +720,23 @@ $("btn-no").onclick=()=>{ $("confirmBox").hidden=true; show("m-run","취소했�
 /* ── 최근 실행 ── */
 function kstText(iso){ const d=new Date(iso); const k=new Date(d.getTime()+(9*60+d.getTimezoneOffset())*60000);
   return `${k.getMonth()+1}/${k.getDate()} ${pad(k.getHours())}:${pad(k.getMinutes())}`; }
+/**
+ * 실행 하나의 결과 문장을 가져옵니다.
+ *
+ * 워크플로가 결과를 "::notice title=결과::…" 로 남기고, 그것이 check run 의
+ * annotation 이 됩니다. Actions 의 job id 가 곧 check run id 라 바로 읽힙니다.
+ */
+async function resultOf(run){
+  const jobs=await gh(`/actions/runs/${run.id}/jobs`);
+  const job=(jobs.jobs||[])[0];
+  if(!job) return null;
+  const notes=await gh(`/check-runs/${job.id}/annotations`);
+  const hit=(notes||[]).find(a=>a.title==="결과");
+  if(hit) return hit.message;
+  const err=(notes||[]).find(a=>a.annotation_level==="failure");
+  return err ? err.message : null;
+}
+
 async function loadRuns(){
   try{
     const d=await gh(`/actions/workflows/${WORKFLOW}/runs?per_page=3`);
@@ -665,12 +745,37 @@ async function loadRuns(){
       const st=r.status!=="completed"?["run","도는 중"]
         :r.conclusion==="success"?["ok","성공"]
         :r.conclusion==="cancelled"?["","취소"]:["err","실패"];
-      return `<div class="result"><span class="tag ${st[0]}">${st[1]}</span>
-        <span>${kstText(r.created_at)} · ${r.event==="schedule"?"자동":"직접"}</span>
-        <a href="${esc(r.html_url)}" target="_blank" rel="noopener">자세히 →</a></div>`;
+      return `<div class="result" id="run-${r.id}">
+        <div class="resline">
+          <span class="tag ${st[0]}">${st[1]}</span>
+          <span>${kstText(r.created_at)} · ${r.event==="schedule"?"자동":"직접"}</span>
+          ${r.status==="completed"?`<button class="link" data-detail="${r.id}">자세히</button>`:""}
+        </div>
+        <div class="resmsg" hidden></div></div>`;
     }).join("");
+    // 가장 최근 것은 눌러 보지 않아도 바로 보여줍니다.
+    const first=runs.find(r=>r.status==="completed");
+    if(first) showDetail(first);
   }catch(_){ /* 조용히 넘어갑니다 */ }
 }
+
+async function showDetail(run){
+  const box=$(`run-${run.id}`); if(!box) return;
+  const msg=box.querySelector(".resmsg");
+  msg.hidden=false; msg.textContent="결과를 읽는 중…";
+  try{
+    const text=await resultOf(run);
+    msg.textContent = text || "이 실행에는 남은 결과 문장이 없습니다.";
+  }catch(e){
+    msg.textContent="결과를 읽지 못했습니다: "+e.message;
+  }
+}
+$("runs").addEventListener("click",async(e)=>{
+  const b=e.target.closest("[data-detail]"); if(!b) return;
+  const d=await gh(`/actions/workflows/${WORKFLOW}/runs?per_page=3`).catch(()=>null);
+  const run=(d&&d.workflow_runs||[]).find(r=>String(r.id)===b.dataset.detail);
+  if(run) showDetail(run);
+});
 
 /* ── Secret ── */
 $("btn-secret").onclick=async()=>{
@@ -683,7 +788,7 @@ $("btn-secret").onclick=async()=>{
 
 /* ── 토큰 ── */
 function applyToken(ok){
-  ["btn-save","btn-check","btn-dry","btn-book"].forEach(id=>$(id).disabled=!ok);
+  ["btn-save","btn-book"].forEach(id=>$(id).disabled=!ok);
   $("setup").hidden=ok; $("tokendet").hidden=!ok;
 }
 async function connect(quiet){

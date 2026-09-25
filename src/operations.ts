@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { loadAdapter } from './adapters/registry.js';
 import { openSession, snapshot, type Session } from './browser.js';
 import { env, requireCredentials } from './config.js';
@@ -15,6 +16,23 @@ async function open(job: JobConfig, headless = env.headless): Promise<{ adapter:
   const adapter = loadAdapter(job.adapter);
   const session = await openSession(adapter.name, { headless });
   return { adapter, session };
+}
+
+/**
+ * 실행 결과 한 줄을 파일로 남깁니다.
+ *
+ * GitHub Actions 가 이 파일을 읽어 annotation 으로 올리고, 어드민 페이지가
+ * 그걸 받아 "315호로 예약되었습니다" 처럼 보여줍니다. 로그를 정규식으로
+ * 긁으면 메시지에 섞인 기호에 걸리므로, 프로그램이 직접 씁니다.
+ */
+export function reportResult(message: string): void {
+  const file = process.env.RESERVE_RESULT_FILE;
+  if (!file) return;
+  try {
+    writeFileSync(file, `${message.replace(/\s+/g, ' ').trim()}\n`, 'utf8');
+  } catch {
+    // 결과를 못 남겨도 예약 자체는 이미 끝났습니다. 조용히 넘어갑니다.
+  }
 }
 
 /**

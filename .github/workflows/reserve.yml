@@ -99,6 +99,8 @@ jobs:
           TZ: Asia/Seoul
           HEADLESS: 'true'
           NO_COLOR: '1'
+          # 프로그램이 결과 한 줄을 여기에 씁니다. 아래에서 읽어 annotation 으로 올립니다.
+          RESERVE_RESULT_FILE: /tmp/reserve-result.txt
         run: |
           set -euo pipefail
           JOB="${{ inputs.job || 'config/manna.job.json' }}"
@@ -116,6 +118,10 @@ jobs:
 
           echo "작업: $JOB / 모드: $MODE"
 
+          # 실행 결과 한 줄을 annotation 으로 남깁니다.
+          # 어드민 페이지가 이 줄을 읽어 "315호로 예약되었습니다" 같은 답을 보여줍니다.
+          set +e
+          (
           case "$MODE" in
             check)
               # 날짜를 비우면 작업 일정(둘째·넷째 일요일)의 다음 날짜를 봅니다.
@@ -154,6 +160,15 @@ jobs:
               npx tsx src/cli.ts watch "$JOB" --auto-book $CONFIRM
               ;;
           esac
+          )
+          CODE=$?
+          set -e
+
+          # 로그를 긁지 않습니다. 프로그램이 직접 쓴 줄을 그대로 씁니다.
+          RESULT=$(head -1 "$RESERVE_RESULT_FILE" 2>/dev/null || true)
+          [ -z "$RESULT" ] && RESULT="결과를 읽지 못했습니다. 로그를 확인하세요."
+          echo "::notice title=결과::${RESULT}"
+          exit "$CODE"
 
       - name: 화면 캡처 올리기
         if: always()
