@@ -46,7 +46,7 @@ body{
   min-height:100%;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
-.wrap{max-width:1080px; margin:0 auto; padding-inline:16px; padding-block:28px 64px}
+.wrap{max-width:1480px; margin:0 auto; padding-inline:16px; padding-block:28px 64px}
 @media (min-width:900px){ .wrap{padding-inline:32px; padding-block:40px 80px} }
 [hidden]{display:none!important}
 
@@ -60,17 +60,39 @@ h1{font-family:"Gowun Batang",serif; font-size:24px; margin:0 0 20px; letter-spa
   padding:3px 8px; border-radius:6px; flex:none}
 .step h2{margin:0}
 
-/* ── PC 2열 ── */
-.grid{display:grid; gap:16px; align-items:start}
-@media (min-width:900px){
-  .grid{grid-template-columns:1fr 1fr; gap:20px}
-  .grid > .card{margin-top:0}
-  .runrow{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:24px; align-items:start}
+/* ── 왼쪽에서 오른쪽으로 흐르는 단계 ──
+   좁으면 한 줄, 중간이면 둘씩, 넓으면 STEP 1·2·3·4 가 한 줄에 나란히 섭니다. */
+.flow{display:grid; gap:16px; align-items:start}
+@media (min-width:760px){
+  .flow{grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px}
+  .flow > .card{margin-top:0}
+}
+@media (min-width:1200px){
+  /* 단마다 담는 양이 달라 폭을 고르게 주면 STEP 2 만 길어집니다.
+     방 목록이 있는 2단과 예약 건이 쌓이는 3단을 넓게 잡습니다. */
+  .flow{grid-template-columns:.82fr 1.18fr 1.1fr .9fr; gap:34px}
+  /* 단 사이에 화살표를 놓아 어느 쪽으로 가는지 보이게 합니다. */
+  .flow > .card{position:relative}
+  .flow > .card:not(:last-child)::after{
+    content:"→"; position:absolute; top:24px; right:-27px; width:20px;
+    text-align:center; font-size:17px; color:var(--ink-3); pointer-events:none;
+  }
+  /* 단이 좁아지므로 안쪽 격자는 들어갈 만큼만 폅니다.
+     두 줄이 되려면 정원까지 한 줄에 들어갈 만한 폭이 있어야 합니다. */
+  .flow .roomlist{grid-template-columns:repeat(auto-fit,minmax(168px,1fr))}
+  .flow .actions{flex-direction:column}
+  .flow .actions .big-btn{min-width:0}
+  /* 여덟 칸이 세로로 늘어지지 않도록 한 줄로 눕힙니다. */
+  .flow .room{padding:9px 11px; gap:9px}
+  .flow .room .rk{width:22px; height:22px; font-size:11px}
+  .flow .room .cap{display:inline; margin-left:4px}
 }
 
 /* ── 블록 ── */
 .card{background:var(--surface); border:1px solid var(--line); border-radius:16px;
-  padding:20px; margin-top:14px; box-shadow:var(--shadow)}
+  padding:20px; margin-top:14px; box-shadow:var(--shadow);
+  /* 단이 좁으면 한국어가 낱말 가운데서 잘립니다. 낱말째로 넘깁니다. */
+  word-break:keep-all; overflow-wrap:anywhere}
 .card h2{font-size:15px; font-weight:700; margin:0 0 4px}
 .card .note{margin:0 0 16px; font-size:13px; color:var(--ink-3)}
 
@@ -282,7 +304,7 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
   </ol>
 </div>
 
-<div class="grid">
+<div class="flow">
 
 <!-- STEP 1 -->
 <div class="card">
@@ -387,18 +409,13 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
   </details>
 </div>
 
-</div><!-- /grid -->
 
 <!-- STEP 3 -->
 <div class="card">
   <div class="step"><span class="no">STEP 3</span><h2>예약하기</h2></div>
   <p class="note">STEP 2 에서 <b>저장</b>한 건만 여기 나옵니다. 위에서 자동·수동을 오가도
     이 목록은 바뀌지 않습니다. 각 건은 따로 돌고 따로 지웁니다.</p>
-  <div class="runrow">
-    <div>
-      <div class="booklist" id="booklist"></div>
-    </div>
-    <div>
+  <div class="booklist" id="booklist"></div>
 
   <div class="setup" id="confirmBox" hidden>
     <b>정말 예약할까요?</b>
@@ -421,16 +438,16 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
     </ol>
     <div class="msg" id="m-run" hidden></div>
   </div>
-    </div>
-  </div>
 </div>
 
-<!-- 결과 -->
+<!-- STEP 4 -->
 <div class="card">
-  <div class="step"><span class="no">결과</span><h2>지난 예약</h2></div>
+  <div class="step"><span class="no">STEP 4</span><h2>예약 결과</h2></div>
   <p class="note">지난 실행과 그때 나온 답입니다.</p>
   <div id="runs"></div>
 </div>
+
+</div><!-- /flow -->
 
 <footer>예약은 GitHub Actions 가 실행합니다 · <a href="https://github.com/studioditto-ctrl/reserve/actions" target="_blank" rel="noopener">실행 기록 전체 보기</a></footer>
 
