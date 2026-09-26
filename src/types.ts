@@ -125,6 +125,27 @@ export interface SiteAdapter {
 }
 
 /** config/*.job.json 의 형태. */
+/** 어드민에 저장된 수동 예약 건 하나. */
+export interface ManualBooking {
+  /** 건을 가리키는 값. 지우거나 갱신할 때 씁니다. */
+  id: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** HH:MM */
+  timeFrom: string;
+  durationMin?: number;
+  /** 모임 인원. 신청서의 인원 칸에 들어갑니다. */
+  people?: number;
+  /** 노릴 호실을 순위대로. */
+  rooms?: RoomRef[];
+  /** 예약이 끝났는가. 끝난 건은 지울 수 있습니다. */
+  done?: boolean;
+  /** 끝났을 때 나온 답 한 줄. */
+  result?: string;
+  /** 끝난 시각 (ISO). */
+  doneAt?: string;
+}
+
 export interface JobConfig {
   name: string;
   /** 사용할 어댑터: 프로필 JSON 경로, 또는 내장 어댑터 이름("mock"). */
@@ -141,6 +162,14 @@ export interface JobConfig {
    * 지정하면 target.dates 를 매 회차마다 이 일정으로 다시 계산합니다.
    */
   schedule?: RecurringSchedule;
+  /**
+   * 어드민이 관리하는 **수동 예약 건** 목록.
+   *
+   * 자동 건(= schedule + target)과 달리 각각 따로 돌고 따로 지웁니다.
+   * 실행할 때는 어드민이 날짜·시각·호실을 명령줄로 직접 넘기므로,
+   * 자동 실행(watch)은 이 목록을 보지 않습니다.
+   */
+  bookings?: ManualBooking[];
   watch?: {
     /** 폴링 간격(초). 최소 5초. */
     intervalSec?: number;

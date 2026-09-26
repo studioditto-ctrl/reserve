@@ -201,8 +201,17 @@ const server = createServer(async (req, res) => {
     if (!form.get('reservation[name]')) return send(res, 400, page('오류', '<p id="form-error">예약자명이 필요합니다.</p>'));
     for (const t of times) booked.set(`${form.get('date')} ${form.get('room')} ${t}`, 'x');
     const code = `R${Math.floor(Math.random() * 900000 + 100000)}`;
+    // 무엇이 실제로 제출됐는지 남깁니다. --count 같은 옵션이 폼까지 닿았는지
+    // 로그만 보고도 가려집니다.
+    console.log(`예약 접수 — ${form.get('date')} ${form.get('room')}호 ${times.join(',')}`
+      + ` · 예약자 ${form.get('reservation[name]')} · 인원 ${form.get('reservation[max_count]')}`);
+    // 인원·예약자를 되돌려 보여 줍니다. 무엇이 실제로 제출됐는지 확인할 수 있어야
+    // --count 같은 옵션이 폼까지 닿았는지 눈으로도, 시험으로도 가릴 수 있습니다.
     return send(res, 200, page('신청 완료', `<div class="done">예약이 완료되었습니다</div>
-      <div>${form.get('date')} ${form.get('room')}호 ${times.join(', ')}</div><div class="code">${code}</div>`));
+      <div>${form.get('date')} ${form.get('room')}호 ${times.join(', ')}</div>
+      <div id="submitted-name">예약자 ${form.get('reservation[name]') ?? ''}</div>
+      <div id="submitted-count">인원 ${form.get('reservation[max_count]') ?? ''}</div>
+      <div class="code">${code}</div>`));
   }
 
   if (path === '/reserve') {
