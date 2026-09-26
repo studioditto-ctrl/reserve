@@ -54,5 +54,16 @@
     "maxConsecutiveErrors": 5,
     "//maxWaitMin": "GitHub Actions 는 매주 토요일에 깨어납니다. 오픈 주차(첫째·셋째)가 아니면 다음 오픈이 한참 뒤라 이 한도를 넘어 곧바로 끝냅니다.",
     "maxWaitMin": 90
+  },
+  "schedule": {
+    "monthsAhead": 2,
+    "weekday": "일",
+    "weeksOfMonth": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
   }
 }
