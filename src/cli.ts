@@ -127,6 +127,17 @@ program
   .option('--auto-book', '빈자리를 찾으면 예약까지 자동으로 진행합니다')
   .option('--confirm', '최종 확정 버튼까지 실제로 누릅니다 (진짜 예약됩니다). 기본은 dry-run.')
   .action(async (jobPath: string, opts: CommonOpts & { interval?: string; autoBook?: boolean }) => {
+    // 잡을 날짜가 없으면 브라우저를 띄우지도 않고 조용히 끝냅니다.
+    // 자동 건을 지운 것은 고장이 아니므로 빨갛게 실패하면 안 됩니다.
+    const peek = loadJob(jobPath, { allowNoDates: true });
+    if (!peek.target.dates?.length) {
+      const msg = peek.schedule
+        ? '지금 열려 있는 날짜가 없습니다. 다음 오픈 때 다시 돕니다.'
+        : '자동 예약 건이 없습니다. 어드민에서 자동 건을 만들어 주세요.';
+      log.warn(msg);
+      reportResult(msg);
+      return;
+    }
     const { job, adapter, session, dryRun } = await bootstrap(jobPath, opts);
     job.watch ??= {};
     if (opts.interval) job.watch.intervalSec = Number(opts.interval);
@@ -236,20 +247,27 @@ program
   .argument('[job]', '작업 파일 경로', DEFAULT_JOB)
   .option('-t, --time <hh:mm>', '시작 시각. 없으면 작업 설정을 씁니다.')
   .option('-d, --duration <min>', '길이(분). 없으면 작업 설정을 씁니다.')
+  .option('-r, --rooms <codes>', '노릴 호실 코드를 순위대로, 쉼표로 구분. 없으면 작업 설정을 씁니다.')
+  .option('-c, --count <n>', '신청서에 넣을 인원. 없으면 BOOKING_VALUES 의 값을 씁니다.')
   .option('--check', '예약하지 않고 조회만 합니다')
   .option('--confirm', '최종 신청 버튼까지 누릅니다 (진짜 예약됩니다). 기본은 dry-run.')
   .action(async (
     date: string,
     jobPath: string,
-    opts: { time?: string; duration?: string; check?: boolean; confirm?: boolean },
+    opts: { time?: string; duration?: string; rooms?: string; count?: string; check?: boolean; confirm?: boolean },
   ) => {
-    const base = loadJob(jobPath);
+    const base = loadJob(jobPath, { allowNoDates: true });
+    // 어드민의 예약 건은 저마다 제 호실 순위와 인원을 들고 옵니다.
+    // 그러지 않으면 화면에 적힌 순위와 실제로 도는 순위가 달라집니다.
+    const rooms = opts.rooms?.split(',').map((s) => s.trim()).filter(Boolean);
     const req = {
       date,
       timeFrom: opts.time ?? base.target.timeFrom ?? '00:00',
       ...(opts.duration ? { durationMin: Number(opts.duration) } : {}),
+      ...(rooms?.length ? { rooms } : {}),
     };
     const job = manualJob(base, req);
+    if (opts.count) job.values = { ...job.values, count: String(opts.count) };
     log.info(`수동 모드 — ${date} ${req.timeFrom}${req.durationMin ? ` (${req.durationMin}분)` : ''}`);
 
     if (opts.check) {

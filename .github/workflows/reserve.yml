@@ -38,6 +38,14 @@ on:
         description: '호실 코드. probe 모드에서 한 곳만 볼 때 씁니다'
         type: string
         required: false
+      rooms:
+        description: '호실 코드를 순위대로, 쉼표로 구분 (예: 24,22,28). book 에서 씁니다. 비우면 작업 설정'
+        type: string
+        required: false
+      count:
+        description: '신청서에 넣을 인원. book 에서 씁니다. 비우면 Secret 의 값'
+        type: string
+        required: false
       time:
         description: '시작 시각 (HH:MM). check·book 에서 씁니다. 비우면 작업 설정(11:00)'
         type: string
@@ -131,6 +139,7 @@ jobs:
                 ARGS=""
                 [ -n "${{ inputs.time }}" ] && ARGS="$ARGS --time ${{ inputs.time }}"
                 [ -n "${{ inputs.duration }}" ] && ARGS="$ARGS --duration ${{ inputs.duration }}"
+                [ -n "${{ inputs.rooms }}" ] && ARGS="$ARGS --rooms ${{ inputs.rooms }}"
                 # shellcheck disable=SC2086
                 npx tsx src/cli.ts book-now "$DATE" "$JOB" $ARGS --check
               else
@@ -153,6 +162,9 @@ jobs:
               ARGS=""
               [ -n "${{ inputs.time }}" ] && ARGS="$ARGS --time ${{ inputs.time }}"
               [ -n "${{ inputs.duration }}" ] && ARGS="$ARGS --duration ${{ inputs.duration }}"
+              # 예약 건마다 제 호실 순위와 인원을 들고 옵니다.
+              [ -n "${{ inputs.rooms }}" ] && ARGS="$ARGS --rooms ${{ inputs.rooms }}"
+              [ -n "${{ inputs.count }}" ] && ARGS="$ARGS --count ${{ inputs.count }}"
               # shellcheck disable=SC2086
               npx tsx src/cli.ts book-now "$DATE" "$JOB" $ARGS $CONFIRM
               ;;

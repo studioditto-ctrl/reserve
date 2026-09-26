@@ -1,7 +1,7 @@
 import { config as loadDotenv } from 'dotenv';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { upcomingDates } from './schedule.js';
+import { openedDates, upcomingDates } from './schedule.js';
 import { loadCredentials } from './store.js';
 import type { Credentials, JobConfig } from './types.js';
 
@@ -57,7 +57,18 @@ export function resolveValue(spec: string, values: Record<string, string> = {}):
   return spec;
 }
 
-export function loadJob(path: string): JobConfig {
+export interface LoadJobOptions {
+  /**
+   * 대상 날짜가 하나도 없어도 그냥 돌려줍니다.
+   *
+   * 어드민에서 자동 예약 건을 지우면 schedule 도 날짜도 없는 설정이 됩니다.
+   * 그건 잘못된 파일이 아니라 "지금은 자동으로 잡을 게 없다" 는 뜻이라,
+   * 매주 도는 감시가 그것 때문에 빨갛게 실패하면 안 됩니다.
+   */
+  allowNoDates?: boolean;
+}
+
+export function loadJob(path: string, opts: LoadJobOptions = {}): JobConfig {
   const full = resolve(path);
   let job: JobConfig;
   try {
@@ -71,8 +82,12 @@ export function loadJob(path: string): JobConfig {
   // 반복 일정이 있으면 여기서 날짜를 계산합니다. 감시 중에는 워커가 다시 갱신합니다.
   // maxDates 는 여기서도 적용해야 합니다. 그러지 않으면 check 가 먼 날짜까지
   // 전부 훑어 호실 수만큼 곱해진 횟수로 사이트를 두드립니다.
+  // leadDays 는 resolveDates 와 같은 규칙이어야 합니다 — 여기서만 다른 날을
+  // 계산하면 "열리지도 않은 날" 을 보러 갑니다.
   if (job.schedule) {
-    const all = upcomingDates(job.schedule);
+    const upcoming = upcomingDates(job.schedule);
+    const lead = job.watch?.leadDays;
+    const all = lead && lead > 0 ? openedDates(upcoming, lead) : upcoming;
     const max = job.watch?.maxDates;
     job.target.dates = max && max > 0 ? all.slice(0, max) : all;
   }
@@ -88,7 +103,7 @@ export function loadJob(path: string): JobConfig {
     }
   }
 
-  if (!job.target.dates?.length) {
+  if (!job.target.dates?.length && !opts.allowNoDates) {
     throw new Error(
       `${full}: 대상 날짜가 없습니다. "target.dates" 에 날짜를 적거나 "schedule" 로 반복 일정을 지정하세요.`,
     );

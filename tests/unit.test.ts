@@ -212,3 +212,37 @@ test('날짜가 여러 개면 모두 적는다', () => {
   assert.match(m, /2026-11-15 \(일\)/);
   assert.match(m, /2026-12-25 \(금\)/);
 });
+
+// ── 자동 건이 없는 설정 ────────────────────────────────────
+import { loadJob } from '../src/config.js';
+import { mkdtempSync, writeFileSync as write } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+function tempJob(obj: unknown): string {
+  const p = join(mkdtempSync(join(tmpdir(), 'job-')), 'j.json');
+  write(p, JSON.stringify(obj), 'utf8');
+  return p;
+}
+
+test('날짜도 일정도 없으면 기본적으로는 막지만, 허락하면 그냥 돌려준다', () => {
+  // 어드민에서 자동 건을 지우면 이런 설정이 됩니다. 고장이 아니라 "지금은 없다" 는 뜻입니다.
+  const path = tempJob({ name: 't', adapter: 'mock', target: { dates: [], rooms: [] } });
+
+  assert.throws(() => loadJob(path), /대상 날짜가 없습니다/);
+  const job = loadJob(path, { allowNoDates: true });
+  assert.deepEqual(job.target.dates, []);
+  assert.equal(job.schedule, undefined);
+});
+
+test('loadJob 도 resolveDates 와 같은 날짜를 고른다', () => {
+  // 두 곳이 다른 날을 계산하면, 열리지도 않은 날을 보러 갑니다.
+  const path = tempJob({
+    name: 't', adapter: 'mock',
+    target: { dates: [], rooms: [], timeFrom: '11:00' },
+    schedule: { weekday: '일', weeksOfMonth: [1, 2, 3, 4, 5], monthsAhead: 2 },
+    watch: { leadDays: 8, maxDates: 1 },
+  });
+  const job = loadJob(path);
+  assert.deepEqual(job.target.dates, resolveDates(job));
+});

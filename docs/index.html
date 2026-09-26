@@ -175,20 +175,32 @@ button.big-btn .s{display:block; font-size:12px; font-weight:400; opacity:.75; m
 
 /* ── 요약 ── */
 label.sub{display:block; font-size:13px; font-weight:700; color:var(--ink); margin-bottom:8px}
-.summary{padding:16px; border-radius:13px; background:var(--accent-soft);
+
+/* ── 예약 건 목록 ── */
+.draft{margin-top:16px; padding:11px 13px; border-radius:10px; background:var(--sunk);
+  border:1px solid var(--line); font-size:13px; color:var(--ink-2)}
+.draft b{color:var(--ink)}
+.booklist{display:flex; flex-direction:column; gap:11px}
+.bk{padding:14px 15px; border-radius:13px; background:var(--accent-soft);
   border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line))}
-.summary.empty{background:var(--sunk); border-color:var(--line); color:var(--ink-3)}
-.summary .lab{font-size:11.5px; font-weight:700; letter-spacing:.06em; color:var(--ink-3); margin-bottom:3px}
-.summary .when{font-family:"Gowun Batang",serif; font-size:21px; font-weight:700; letter-spacing:-.01em}
-.summary .rows{margin-top:10px; display:flex; flex-direction:column; gap:5px; font-size:13.5px; color:var(--ink-2)}
-.summary .rows b{color:var(--ink); font-weight:700}
-/* 예약 준비(오픈) 시각 — 언제 로직이 도는지 눈으로 확인하는 줄 */
-.summary .prep{margin-top:11px; padding-top:11px; border-top:1px dashed color-mix(in srgb,var(--accent) 45%,var(--line));
-  font-size:13.5px; color:var(--ink-2)}
-.summary .prep b{color:var(--ink); font-weight:700}
-.summary .prep .ago{color:var(--ink-3)}
-.summary .now{margin-top:11px; padding-top:11px; border-top:1px dashed var(--line); font-size:13px; color:var(--ink-3)}
-.summary .now b{color:var(--ink-2); font-weight:700}
+.bk.done{background:var(--sunk); border-color:var(--line)}
+.bk.stale{background:var(--sunk); border-color:var(--line); opacity:.62}
+.bkhead{display:flex; align-items:center; gap:9px; flex-wrap:wrap}
+.kind{font-size:11px; font-weight:700; letter-spacing:.04em; padding:3px 8px; border-radius:999px;
+  background:var(--accent); color:var(--on-accent)}
+.kind.manual{background:var(--ink-3)}
+.bkwhen{font-family:"Gowun Batang",serif; font-size:18px; font-weight:700; letter-spacing:-.01em}
+.bkstate{margin-left:auto; font-size:12px; font-weight:700; color:var(--ink-3)}
+.bkstate.ok{color:var(--accent-ink)}
+.bkstate.err{color:var(--warn)}
+.bkrows{margin-top:9px; display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--ink-2)}
+.bkrows b{color:var(--ink); font-weight:700}
+.bkresult{margin-top:9px; padding-top:9px; border-top:1px dashed var(--line);
+  font-size:12.5px; color:var(--ink-2); white-space:pre-wrap}
+.bkbtns{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+.bkbtns .go{border-color:color-mix(in srgb,var(--warn) 55%,var(--line)); color:var(--warn); font-weight:700}
+.bkbtns .go:disabled{opacity:.45; cursor:not-allowed; border-color:var(--line); color:var(--ink-3); font-weight:400}
+.bkbtns .del{color:var(--ink-3)}
 
 /* ── 진행상황 ── */
 .steps{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:0}
@@ -348,8 +360,10 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
   <div class="picks" id="picks"></div>
   <div class="roomlist" id="rooms"></div>
 
+  <div class="draft" id="draft"></div>
   <div class="actions">
-    <button class="big-btn primary" id="btn-save" disabled>이 설정 저장</button>
+    <button class="big-btn primary" id="btn-save" disabled>이 설정으로 예약 건 저장
+      <span class="s">저장하면 STEP 3 목록에 올라갑니다</span></button>
   </div>
   <div class="msg" id="m-save" hidden></div>
 
@@ -378,13 +392,11 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
 <!-- STEP 3 -->
 <div class="card">
   <div class="step"><span class="no">STEP 3</span><h2>예약하기</h2></div>
+  <p class="note">STEP 2 에서 <b>저장</b>한 건만 여기 나옵니다. 위에서 자동·수동을 오가도
+    이 목록은 바뀌지 않습니다. 각 건은 따로 돌고 따로 지웁니다.</p>
   <div class="runrow">
     <div>
-      <div class="summary" id="summary"></div>
-      <div class="actions">
-        <button class="big-btn warn" id="btn-book" disabled>지금 예약하기
-          <span class="s">1순위부터 차례로 시도합니다 · 되돌릴 수 없습니다</span></button>
-      </div>
+      <div class="booklist" id="booklist"></div>
     </div>
     <div>
 
@@ -401,6 +413,7 @@ footer{margin-top:24px; font-size:12.5px; color:var(--ink-3); text-align:center}
 
   <div id="progress" hidden>
     <label class="sub">진행상황</label>
+    <p class="note" id="progress-what"></p>
     <ol class="steps" id="steps">
       <li data-step="send"><span class="dot"></span><span class="lbl">GitHub 에 보내기</span><span class="at"></span></li>
       <li data-step="run"><span class="dot"></span><span class="lbl">사이트에서 자리 잡는 중</span><span class="at"></span></li>
@@ -539,7 +552,7 @@ function renderRooms(){
     ? `${MAX_PICKS - live.length}곳 더 고를 수 있습니다.`
     : bad.length ? `${bad.map(r=>r.name).join(", ")} 은 ${n}명 정원이 아닙니다.`
     : `${n}명 기준으로 세 곳 모두 정원이 맞습니다.`;
-  updateTargetLine();
+  refresh();
 }
 $("picks").addEventListener("click",(e)=>{
   const rm=e.target.closest("[data-rm]");
@@ -573,7 +586,7 @@ function setMode(m, silent){
   if (m==="manual" && !manualDates.length && !silent && !manualTouched){
     const t=soonestAuto(); if(t) addDate(ymd(t));
   }
-  renderDates(); updateTargetLine();
+  renderDates(); refresh();
 }
 $("mode-auto").onclick   = ()=>setMode("auto");
 $("mode-manual").onclick = ()=>setMode("manual");
@@ -595,22 +608,22 @@ function repeatFromWeeks(w){
 $("repeat").onchange=()=>{
   $("weekpick").hidden = $("repeat").value!=="custom";
   if($("repeat").value==="custom" && !$("tWeeks").children.length) weekChips([2,4]);
-  updateTargetLine();
+  refresh();
 };
-$("tWeeks").addEventListener("change",updateTargetLine);
+$("tWeeks").addEventListener("change",refresh);
 
 /* ── 수동 날짜 ── */
 function addDate(v){
   if(!v || manualDates.includes(v)) return;
   manualDates.push(v); manualDates.sort();
   manualTouched=true;
-  renderDates(); updateTargetLine();
+  renderDates(); refresh();
 }
 function removeDate(v){
   if(!manualDates.includes(v)) return;
   manualDates=manualDates.filter(d=>d!==v);
   manualTouched=true;                 // 다시 채워 넣지 않습니다
-  renderDates(); updateTargetLine();
+  renderDates(); refresh();
   markDirty();
 }
 function renderDates(){
@@ -636,12 +649,12 @@ $("datelist").addEventListener("click",(e)=>{
 $("btn-clearpast").onclick=()=>{
   const today=ymd(kstNow());
   manualDates=manualDates.filter(d=>d>=today);
-  manualTouched=true; renderDates(); updateTargetLine(); markDirty();
+  manualTouched=true; renderDates(); refresh(); markDirty();
 };
 $("btn-cleardates").onclick=()=>{
   if(manualDates.length>1 && !confirm(`날짜 ${manualDates.length}개를 모두 지울까요?`)) return;
   manualDates=[];
-  manualTouched=true; renderDates(); updateTargetLine(); markDirty();
+  manualTouched=true; renderDates(); refresh(); markDirty();
 };
 $("btn-adddate").onclick=()=>{ addDate($("newdate").value); $("newdate").value=""; };
 $("newdate").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); $("btn-adddate").click(); }});
@@ -672,19 +685,23 @@ function nextMatch(weekday,weeks,hhmm,after){
 function soonestAuto(after){
   return nextMatch($("tWeekday").value||"일", weeksFromUI(), $("timeFrom").value||"11:00", after);
 }
-/* 수동 모드에서 아직 지나지 않은 첫 날 */
-function soonestManual(after){
-  const from=after||kstNow();
-  const [h,m]=($("timeFrom").value||"11:00").split(":").map(Number);
-  for(const d of manualDates){
-    const t=new Date(d+"T00:00:00"); t.setHours(h,m,0,0);
-    if(t>from) return t;
-  }
-  return null;
+const ymd=(d)=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const md=(d)=>`${d.getMonth()+1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`;
+const hm=(d)=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/* 두 날짜 사이가 며칠인지 (자정 기준) */
+function daysBetween(a,b){
+  const s=new Date(a.getFullYear(),a.getMonth(),a.getDate());
+  const e=new Date(b.getFullYear(),b.getMonth(),b.getDate());
+  return Math.round((e-s)/86400000);
 }
+function atTime(dateStr,hhmm){
+  const [h,m]=(hhmm||"11:00").split(":").map(Number);
+  const d=new Date(dateStr+"T00:00:00"); d.setHours(h,m,0,0); return d;
+}
+
+/* ── 오픈 시각 ── */
 /* 사이트가 오픈 시각에 여는 날짜까지의 간격. 만나교회는 8일. */
 function leadDays(){ const n=Number($("oLead").value); return n>0?n:8; }
-
 function openCfg(){
   const o=(cfg&&cfg.watch&&cfg.watch.openAt)||{};
   return { weekday:o.weekday||"토", weeks:o.weeksOfMonth||[1,3], time:$("oTime").value||"21:00" };
@@ -706,98 +723,135 @@ function lastOpen(){
   }
   return null;
 }
-
 /**
- * 그 오픈이 연 날짜.
+ * 그 오픈이 연 날짜 — 저장된 자동 건 기준.
  *
  * 사이트는 오픈 때 정확히 leadDays 뒤 하루를 엽니다. 그러니 "열려 있는 자리" 는
- * 오픈 한 번에 하루뿐이고, 그 날이 내 반복 일정에 드는 날일 때만 잡을 수 있습니다.
+ * 오픈 한 번에 하루뿐이고, 그 날이 이 건의 반복 일정에 드는 날일 때만 잡힙니다.
  * (토요일이 2주에 한 번 열리면, 일요일을 매주로 적어 두어도 격주로만 열립니다.)
  */
-function openedBy(open){
-  if(!open) return null;
-  const [h,m]=($("timeFrom").value||"11:00").split(":").map(Number);
+function openedBy(bk, open){
+  if(!open || !bk || !bk.schedule) return null;
+  const [h,m]=(bk.timeFrom||"11:00").split(":").map(Number);
   const want=new Date(open.getFullYear(),open.getMonth(),open.getDate()+leadDays(),h,m,0);
-  const hit=soonestAuto(new Date(want.getTime()-60000));   // 그 날이 반복 일정에 드는가
+  const hit=nextMatch(bk.schedule.weekday, bk.schedule.weeksOfMonth, bk.timeFrom,
+                      new Date(want.getTime()-60000));
   return hit && ymd(hit)===ymd(want) ? want : null;
 }
 
-/* 지금 눌렀을 때 실제로 시도할 날 */
-function soonestTarget(){
-  return mode==="manual" ? soonestManual() : openedBy(lastOpen());
-}
-const ymd=(d)=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-const md=(d)=>`${d.getMonth()+1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`;
-const hm=(d)=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
-/* 두 날짜 사이가 며칠인지 (자정 기준) */
-function daysBetween(a,b){
-  const s=new Date(a.getFullYear(),a.getMonth(),a.getDate());
-  const e=new Date(b.getFullYear(),b.getMonth(),b.getDate());
-  return Math.round((e-s)/86400000);
-}
+/* ── 예약 건 ── */
 /**
- * 다음 예약 한 건을 보여 줍니다.
- *
- * 두 시각을 나란히 적습니다. 어느 쪽이 언제 도는지 눈으로 확인하기 위함입니다.
- *  · 예약 일정 — 잡으려는 자리 (일요일 11:00~12:00)
- *  · 예약 준비 — 그 자리가 열려 Actions 가 실제로 도는 시각 (전주 토요일 21:00)
+ * 지금 화면(STEP 1·2)에 적힌 내용을 예약 건 한 벌로 만듭니다.
+ * 저장을 눌러야 STEP 3 으로 넘어갑니다 — 그 전까지는 초안일 뿐입니다.
  */
-function updateTargetLine(){
+function draftBooking(){
+  return {
+    kind: mode,
+    timeFrom: $("timeFrom").value||"11:00",
+    durationMin: Number($("durationMin").value)||60,
+    people: Number($("people").value)||1,
+    rooms: onRooms().map(r=>({id:r.id,label:r.label})),
+    ...(mode==="auto"
+        ? { schedule:{ weekday:$("tWeekday").value||"일", weeksOfMonth:weeksFromUI(), monthsAhead:2 } }
+        : { dates:[...manualDates].sort() }),
+  };
+}
+/** 저장된 설정에서 예약 건 목록을 읽습니다. 자동은 최대 한 건입니다. */
+function readBookings(){
+  const out=[];
+  if(cfg && cfg.schedule){
+    const t=cfg.target||{};
+    out.push({ id:"auto", kind:"auto", schedule:cfg.schedule,
+               timeFrom:t.timeFrom||"11:00", durationMin:t.durationMin||60,
+               people:t.people||1, rooms:t.rooms||[] });
+  }
+  for(const b of (cfg&&cfg.bookings)||[]) out.push({ ...b, kind:"manual" });
+  return out;
+}
+/** 이 건이 다음으로 노리는 날. 자동은 다음 오픈이 열 날, 수동은 적어 둔 날. */
+function bookingTarget(bk){
+  return bk.kind==="auto" ? openedBy(bk, nextOpen()) : atTime(bk.date, bk.timeFrom);
+}
+/** 이 건을 지금 누르면 시도할 날. 자동은 직전 오픈이 연 날 뿐입니다. */
+function bookingNow(bk){
+  return bk.kind==="auto" ? openedBy(bk, lastOpen()) : atTime(bk.date, bk.timeFrom);
+}
+function roomText(bk){
+  const rs=bk.rooms||[];
+  return rs.length ? rs.map((r,i)=>`${i+1}. ${esc((r.label||r.id).replace(/\s*\(.*\)$/,""))}`).join(" → ")
+                   : "방을 안 골랐습니다";
+}
+function repeatLabel(sch){
+  const k=[...(sch.weeksOfMonth||[])].sort().join("");
+  const t={ "12345":"매주", "13":"첫째·셋째", "24":"둘째·넷째", "1":"첫째" }[k]
+        || `${(sch.weeksOfMonth||[]).join("·")}째`;
+  return `${t} ${sch.weekday||"일"}요일`;
+}
+
+/** STEP 2 아래에 "저장하면 이렇게 됩니다" 한 줄. 초안이라는 것을 분명히 합니다. */
+function renderDraft(){
   if(!cfg) return;
-  const box=$("summary");
-  const live=onRooms();
-  const open = mode==="auto" ? nextOpen() : null;         // 다음 오픈 (토 21:00)
-  const auto = open ? openedBy(open) : null;              // 그때 열려서 잡게 될 날
-  const now  = soonestTarget();                           // 지금 누르면 시도할 날
-  const t    = auto || now;                               // 카드의 주인공
-  if(!t || !live.length){
-    box.className="summary empty";
-    box.innerHTML = !t
-      ? (mode==="manual"
-          ? (manualDates.length ? "지정한 날짜가 모두 지났습니다. 위에서 새 날짜를 넣으세요."
-                                : "날짜를 아직 안 정하셨습니다.")
-          : "잡을 날짜를 정하지 못했습니다.")
-      : "노릴 방을 아직 안 고르셨습니다.";
+  const bk=draftBooking(), box=$("draft");
+  if(!bk.rooms.length){ box.textContent="방을 고르면 여기에 저장될 내용이 나옵니다."; return; }
+  if(bk.kind==="manual" && !bk.dates.length){ box.textContent="날짜를 넣으면 여기에 저장될 내용이 나옵니다."; return; }
+  const what = bk.kind==="auto"
+    ? `자동 · ${repeatLabel(bk.schedule)} ${bk.timeFrom}`
+    : `수동 ${bk.dates.length}건 · ${bk.dates.map(d=>md(new Date(d+"T00:00:00"))).join(", ")} ${bk.timeFrom}`;
+  box.innerHTML=`저장하면 → <b>${esc(what)}</b> · ${bk.people}명 · ${roomText(bk)}`;
+}
+
+/** STEP 3 — 저장된 건만, 자동/수동 토글과 무관하게. */
+function renderBookings(){
+  const list=readBookings(), box=$("booklist");
+  if(!list.length){
+    box.innerHTML=`<p class="emptynote">저장된 예약 건이 없습니다. STEP 1·2 를 채우고 <b>예약 건 저장</b> 을 누르세요.</p>`;
     return;
   }
-  const dur=Number($("durationMin").value)||60;
-  const end=new Date(t.getTime()+dur*60000);
-  const n=Number($("people").value)||1;
-  box.className="summary";
-  // 예약 준비 — 이 시각에 Actions 가 깨어나 자리를 잡습니다.
-  const prep = open && auto
-    ? `<div class="prep">예약 준비 <b>${md(open)} ${hm(open)}</b>
-         <span class="ago">· 예약일 ${daysBetween(open,t)}일 전 · 이때 자동으로 돕니다</span></div>`
-    : `<div class="prep"><span class="ago">수동 모드에서는 자동으로 돌지 않습니다. 아래 버튼으로 직접 잡으세요.</span></div>`;
+  const today=ymd(kstNow());
+  box.innerHTML=list.map(bk=>{
+    const t=bookingTarget(bk), n=bookingNow(bk);
+    const stale = bk.kind==="manual" && bk.date<today && !bk.done;
+    const dur=bk.durationMin||60;
+    const when = t ? `${md(t)} ${hm(t)}~${hm(new Date(t.getTime()+dur*60000))}`
+                   : (bk.kind==="auto" ? "다음 오픈 때 열리는 날이 없습니다" : "날짜 없음");
+    const state = bk.done ? ["ok","✓ 예약 완료"]
+                : stale   ? ["","지난 날짜"]
+                : bk.kind==="auto" ? ["","자동으로 돕니다"] : ["","대기 중"];
 
-  // 지금 버튼을 누르면 노릴 날 — 직전 오픈이 연 하루입니다. 위와 다를 수 있습니다.
-  const differs = mode==="auto" && (!now || !auto || ymd(now)!==ymd(auto));
-  const nowLine = !differs ? ""
-    : now ? `<div class="now">지금 예약하기를 누르면 <b>${md(now)} ${hm(now)}</b> — 이미 열려 있는 자리를 시도합니다.</div>`
-          : `<div class="now">지금은 열려 있는 자리가 없습니다. 위 시각에 자동으로 잡습니다.</div>`;
+    // 자동 건만 "예약 준비" 시각이 있습니다 — 그때 Actions 가 깨어납니다.
+    const open = bk.kind==="auto" ? nextOpen() : null;
+    const prep = open && t
+      ? `<div>예약 준비 <b>${md(open)} ${hm(open)}</b> · 예약일 ${daysBetween(open,t)}일 전 · 이때 자동으로 돕니다</div>`
+      : bk.kind==="auto" ? "" : `<div>자동으로 돌지 않습니다. 아래 버튼으로 직접 잡습니다.</div>`;
 
-  // 사이트가 2주에 한 번만 열면, 일요일을 매주로 적어 두어도 격주로만 잡힙니다.
-  const perMonth = mode==="auto" ? weeksFromUI().length : 0;
-  const opens = openCfg().weeks.length;
-  const gapLine = perMonth>opens
-    ? `<div class="now">사이트가 ${openCfg().weeks.join("·")}째 ${openCfg().weekday}요일에만 열어,
-         고르신 ${perMonth}번 중 <b>한 달에 ${opens}번</b>만 실제로 잡힙니다.</div>`
-    : "";
+    // 지금 누르면 노릴 날이 위와 다를 수 있습니다 (이미 열려 있는 자리).
+    const diff = bk.kind==="auto" && n && (!t || ymd(n)!==ymd(t))
+      ? `<div>지금 누르면 <b>${md(n)} ${hm(n)}</b> — 이미 열려 있는 자리</div>` : "";
 
-  const repeatText=$("repeat").options[$("repeat").selectedIndex].text;
-  box.innerHTML=`
-    <div class="lab">예약 일정</div>
-    <div class="when">${md(t)} ${hm(t)}~${hm(end)}</div>
-    <div class="rows">
-      <div>모임 인원 <b>${n}명</b></div>
-      <div>노릴 순서 <b>${live.map((r,i)=>`${i+1}. ${esc(r.name)}`).join(" → ")}</b></div>
-      <div>${mode==="auto"
-            ? `자동 · ${repeatText} ${$("tWeekday").value}요일`
-            : `수동 · 지정한 ${manualDates.length}일 중 가장 가까운 날`}</div>
-    </div>
-    ${prep}${nowLine}${gapLine}`;
+    const canRun = !!n && !bk.done && !stale;
+    return `<div class="bk ${bk.done?"done":""} ${stale?"stale":""}" data-bk="${esc(bk.id)}">
+      <div class="bkhead">
+        <span class="kind ${bk.kind}">${bk.kind==="auto"?"자동":"수동"}</span>
+        <span class="bkwhen">${esc(when)}</span>
+        <span class="bkstate ${state[0]}">${state[1]}</span>
+      </div>
+      <div class="bkrows">
+        ${bk.kind==="auto"?`<div>반복 <b>${esc(repeatLabel(bk.schedule))}</b></div>`:""}
+        <div>인원 <b>${bk.people||1}명</b> · 순서 <b>${roomText(bk)}</b></div>
+        ${prep}${diff}
+      </div>
+      ${bk.result?`<div class="bkresult">${esc(bk.result)}</div>`:""}
+      <div class="bkbtns">
+        <button class="mini go" data-run="${esc(bk.id)}"${canRun?"":" disabled"}>지금 예약하기</button>
+        <button class="mini del" data-del="${esc(bk.id)}">삭제</button>
+      </div>
+    </div>`;
+  }).join("");
+  // 토큰이 없으면 누를 수 없습니다.
+  if(!token) box.querySelectorAll(".mini").forEach(b=>b.disabled=true);
 }
-["oTime","oLead","timeFrom","durationMin","tWeekday"].forEach(id=>$(id).addEventListener("change",updateTargetLine));
+function refresh(){ renderDraft(); renderBookings(); }
+["oTime","oLead","timeFrom","durationMin","tWeekday"].forEach(id=>$(id).addEventListener("change",refresh));
 
 /* ── 설정 읽기 ── */
 async function loadConfig(){
@@ -812,91 +866,146 @@ async function loadConfig(){
     $("oLead").value=w.leadDays||8;
     manualTouched=false; clearDirty();
 
-    // schedule 이 있으면 자동, 없으면 지정 날짜를 쓰는 수동
-    if(cfg.schedule){
-      $("tWeekday").value=s.weekday||"일";
-      const wk=s.weeksOfMonth||[2,4];
-      $("repeat").value=repeatFromWeeks(wk);
-      weekChips(wk);
-      $("weekpick").hidden=$("repeat").value!=="custom";
-      manualDates=[];
-      setMode("auto", true);
-    }else{
-      $("tWeekday").value="일"; $("repeat").value="24"; weekChips([2,4]);
-      manualDates=[...(t.dates||[])].sort();
-      setMode("manual", true);
+    // 예전 설정은 수동 날짜를 target.dates 에 두었습니다. 예약 건으로 옮깁니다.
+    // (다음에 저장할 때 새 모양으로 기록됩니다)
+    if(!cfg.schedule && !cfg.bookings && (t.dates||[]).length){
+      cfg.bookings=[...t.dates].sort().map(d=>({ id:"m"+d, date:d,
+        timeFrom:t.timeFrom||"11:00", durationMin:t.durationMin||60,
+        people:t.people||1, rooms:t.rooms||[] }));
     }
+
+    // STEP 1·2 는 초안일 뿐입니다. 저장된 자동 건이 있으면 그 내용으로 채웁니다.
+    const wk=(cfg.schedule?s.weeksOfMonth:null)||[2,4];
+    $("tWeekday").value=(cfg.schedule&&s.weekday)||"일";
+    $("repeat").value=repeatFromWeeks(wk);
+    weekChips(wk);
+    $("weekpick").hidden=$("repeat").value!=="custom";
+    // 아직 끝나지 않은 수동 건을 초안에 올려 두면, 고쳐서 다시 저장하기 쉽습니다.
+    manualDates=((cfg.bookings)||[]).filter(x=>!x.done).map(x=>x.date).sort();
+    setMode(cfg.schedule?"auto":"manual", true);
     rooms=FLOOR3.map(r=>({ ...r, label:`${r.name} (${r.cap.min}~${r.cap.max}인)`,
                            capText:`${r.cap.min}~${r.cap.max}인` }));
     // 설정에 저장된 순서가 곧 순위입니다. 모르는 코드는 버립니다.
     const saved=(t.rooms||[]).map(r=>r.id).filter(id=>rooms.some(x=>x.id===id));
     picks=(saved.length?saved:rooms.slice(0,MAX_PICKS).map(r=>r.id)).slice(0,MAX_PICKS);
-    renderRooms(); updateTargetLine();
+    renderRooms(); refresh();
   }catch(e){
-    const box=$("summary");
-    box.className="summary empty";
-    box.textContent="설정을 읽지 못했습니다: "+e.message;
+    $("booklist").innerHTML=`<p class="emptynote">설정을 읽지 못했습니다: ${esc(e.message)}</p>`;
   }
 }
 
 /* ── 저장 ── */
-function buildConfig(){
-  const next=JSON.parse(JSON.stringify(cfg));
-  next.target=next.target||{};
-  next.target.timeFrom=$("timeFrom").value;
-  next.target.durationMin=Number($("durationMin").value);
-  next.target.rooms=onRooms().map(r=>({id:r.id,label:r.label}));
-  // 몇 명이 모이는지도 함께 저장합니다. 다음에 열 때 그대로 돌아옵니다.
-  next.target.people=Number($("people").value)||1;
-
-  if(mode==="auto"){
-    // 반복 일정. target.dates 는 비워 두면 일정에서 계산된다.
-    next.schedule=Object.assign({monthsAhead:2}, next.schedule, {
-      weekday:$("tWeekday").value, weeksOfMonth:weeksFromUI(),
-    });
-    next.target.dates=[];
-  }else{
-    // 지정한 날짜만. schedule 이 없어야 target.dates 를 그대로 쓴다.
-    delete next.schedule; delete next["//schedule"];
-    next.target.dates=[...manualDates].sort();
-  }
-  next.watch=next.watch||{};
-  next.watch.openAt=Object.assign({},next.watch.openAt,{time:$("oTime").value});
-  // 오픈 때 열리는 날짜까지의 간격. 이게 있어야 "막 열린 날" 을 고릅니다.
-  next.watch.leadDays=leadDays();
-  return JSON.stringify(next,null,2)+"\n";
+/**
+ * 바뀐 cfg 를 저장소에 씁니다.
+ * cfg 를 직접 고친 뒤 부르세요 — 화면의 값이 아니라 지금 cfg 가 그대로 올라갑니다.
+ */
+async function saveConfig(message){
+  const r=await gh(`/contents/${CONFIG_PATH}`,{ method:"PUT", body:JSON.stringify({
+    message, content:b64(JSON.stringify(cfg,null,2)+"\n"), sha:cfgSha, branch:BRANCH })});
+  cfgSha=r.content.sha;
 }
+
+/**
+ * STEP 1·2 의 초안을 예약 건으로 굳힙니다.
+ *
+ *  · 자동 — 한 건뿐이라 기존 자동 건을 갈아끼웁니다 (schedule + target).
+ *  · 수동 — 날짜마다 한 건씩 cfg.bookings 에 넣습니다. 같은 날짜는 덮어씁니다.
+ *
+ * 자동과 수동은 서로를 지우지 않습니다. 둘 다 두고 따로 돌릴 수 있습니다.
+ */
+function applyDraft(){
+  const bk=draftBooking();
+  cfg.target=cfg.target||{};
+  cfg.watch=cfg.watch||{};
+  cfg.watch.openAt=Object.assign({},cfg.watch.openAt,{time:$("oTime").value});
+  // 오픈 때 열리는 날짜까지의 간격. 이게 있어야 "막 열린 날" 을 고릅니다.
+  cfg.watch.leadDays=leadDays();
+
+  if(bk.kind==="auto"){
+    cfg.schedule=Object.assign({monthsAhead:2}, cfg.schedule, bk.schedule);
+    cfg.target.timeFrom=bk.timeFrom;
+    cfg.target.durationMin=bk.durationMin;
+    cfg.target.people=bk.people;
+    cfg.target.rooms=bk.rooms;
+    cfg.target.dates=[];        // 날짜는 반복 일정에서 계산합니다
+    return `자동 ${repeatLabel(bk.schedule)} · ${bk.people}명`;
+  }
+  cfg.bookings=cfg.bookings||[];
+  for(const d of bk.dates){
+    const one={ id:"m"+d, date:d, timeFrom:bk.timeFrom, durationMin:bk.durationMin,
+                people:bk.people, rooms:bk.rooms };
+    const i=cfg.bookings.findIndex(x=>x.id===one.id);
+    if(i>=0) cfg.bookings[i]=Object.assign({},cfg.bookings[i],one);
+    else cfg.bookings.push(one);
+  }
+  cfg.bookings.sort((a,b)=>a.date<b.date?-1:1);
+  return `수동 ${bk.dates.length}건 · ${bk.people}명`;
+}
+
 $("btn-save").onclick=async()=>{
   if(!cfg) return show("m-save","설정을 아직 읽지 못했습니다.","err");
-  const on=onRooms();
-  if(!on.length) return show("m-save","노릴 방이 없습니다. 인원을 확인하거나 방을 체크하세요.","err");
+  if(!onRooms().length) return show("m-save","노릴 방이 없습니다. 인원을 확인하거나 방을 체크하세요.","err");
   if(mode==="manual" && !manualDates.length) return show("m-save","날짜를 하나 이상 추가하세요.","err");
   show("m-save","저장하는 중…","wait");
+  const before=JSON.stringify(cfg);
   try{
-    const r=await gh(`/contents/${CONFIG_PATH}`,{ method:"PUT", body:JSON.stringify({
-      message:`예약 설정 변경 — ${mode==="auto"?`자동 ${$("tWeekday").value}요일`:`수동 ${manualDates.length}일`}, ${$("people").value}명, ${on.map(x=>x.name).join(" → ")}`,
-      content:b64(buildConfig()), sha:cfgSha, branch:BRANCH })});
-    cfgSha=r.content.sha;
+    const what=applyDraft();
+    await saveConfig(`예약 건 저장 — ${what}, ${onRooms().map(x=>x.name).join(" → ")}`);
     manualTouched=false; clearDirty();
-    const t=soonestTarget();
-    show("m-save",`저장했습니다.\n${mode==="auto"?`${$("tWeekday").value}요일 ${$("repeat").options[$("repeat").selectedIndex].text}`:`지정한 ${manualDates.length}일`} · ${on[0].name} 부터 순서대로 노립니다.`
-      +(t?`\n다음: ${md(t)}`:""),"ok");
+    refresh();
+    show("m-save",`저장했습니다.\nSTEP 3 목록에서 확인하세요 — ${what}.`,"ok");
   }catch(e){
+    cfg=JSON.parse(before);     // 저장에 실패했으면 화면의 목록도 되돌립니다
+    refresh();
     show("m-save","저장하지 못했습니다: "+e.message+((e.status===403||e.status===404)?"\n토큰에 Contents 쓰기 권한이 있는지 확인하세요.":""),"err");
   }
 };
 
+/* ── 예약 건 지우기 ── */
+async function deleteBooking(id){
+  const bk=readBookings().find(b=>b.id===id);
+  if(!bk) return;
+  const t=bookingTarget(bk);
+  const what=bk.kind==="auto" ? `자동 건 (${repeatLabel(bk.schedule)})` : `${t?md(t):bk.date} 건`;
+  if(!confirm(`${what} 을 지울까요?\n이미 잡은 예약이 취소되지는 않습니다 — 목록에서만 없어집니다.`)) return;
+  const before=JSON.stringify(cfg);
+  try{
+    if(bk.kind==="auto"){
+      delete cfg.schedule; delete cfg["//schedule"];
+      cfg.target.dates=[];
+    }else{
+      cfg.bookings=(cfg.bookings||[]).filter(x=>x.id!==id);
+      // 초안에서도 빼야 다음 저장에 되살아나지 않습니다.
+      manualDates=manualDates.filter(d=>d!==bk.date);
+      manualTouched=true; renderDates();
+    }
+    refresh();
+    await saveConfig(`예약 건 삭제 — ${what}`);
+    show("m-run",`지웠습니다 — ${what}.`,"ok");
+  }catch(e){
+    cfg=JSON.parse(before); refresh();
+    show("m-run","지우지 못했습니다: "+e.message,"err");
+  }
+}
+
 /* ── 실행 ── */
-async function dispatch(mode,confirmIt){
+let runningBk=null;      // 지금 돌고 있는 예약 건의 id
+async function dispatchBooking(bk){
+  const when=bookingNow(bk);
+  if(!when) return show("m-run","지금 잡을 수 있는 날이 없습니다.","err");
+  runningBk=bk.id;
   resetSteps();
+  $("progress-what").textContent=`${md(when)} ${hm(when)} · ${roomText(bk)}`;
   step("send","active");
   $("m-run").hidden=true;
   // 새 실행이 목록에 뜬 것을 알아보려면, 보내기 전의 최신 실행을 기억해 둡니다.
   const before=await latestRunId();
-  const inputs={ mode, job:CONFIG_PATH, confirm:confirmIt?"true":"false",
-                 time:$("timeFrom").value, duration:String($("durationMin").value) };
-  const t=soonestTarget();
-  if(t) inputs.date=ymd(t);
+  const inputs={ mode:"book", job:CONFIG_PATH, confirm:"true",
+                 date:ymd(when), time:bk.timeFrom||"11:00",
+                 duration:String(bk.durationMin||60),
+                 // 건마다 제 순위와 인원으로 돕니다. 화면과 실제가 같아야 합니다.
+                 rooms:(bk.rooms||[]).map(r=>r.id).join(","),
+                 count:String(bk.people||1) };
   try{
     await gh(`/actions/workflows/${WORKFLOW}/dispatches`,{ method:"POST",
       body:JSON.stringify({ ref:BRANCH, inputs })});
@@ -905,20 +1014,42 @@ async function dispatch(mode,confirmIt){
     show("m-run","보냈습니다. 새로고침하지 않으셔도 결과가 여기 나옵니다 (보통 1~2분).","wait");
     follow(before);
   }catch(e){
+    runningBk=null;
     step("send","fail",nowHM());
     show("m-run","실행하지 못했습니다: "+e.message+((e.status===403||e.status===404)?"\n토큰에 Actions 쓰기 권한이 있는지 확인하세요.":""),"err");
   }
 }
-$("btn-book").onclick=()=>{
-  const first=onRooms()[0];
-  if(!first) return show("m-run","노릴 방이 없습니다.","err");
-  const t=soonestTarget();
+
+/**
+ * 끝난 건에 결과를 적어 둡니다.
+ * 수동 건은 여기서 "완료" 가 되고, 그때부터 지울 수 있습니다.
+ */
+async function markDone(id, ok, text){
+  const list=(cfg&&cfg.bookings)||[];
+  const bk=list.find(x=>x.id===id);
+  if(!bk) return;                       // 자동 건은 계속 도는 것이라 표시하지 않습니다
+  bk.done=ok; bk.result=text||""; bk.doneAt=new Date().toISOString();
+  refresh();
+  try{ await saveConfig(`예약 결과 기록 — ${bk.date} ${ok?"완료":"실패"}`); }
+  catch(_){ /* 기록을 못 남겨도 예약 자체는 이미 끝났습니다 */ }
+}
+
+$("booklist").addEventListener("click",(e)=>{
+  const del=e.target.closest("[data-del]");
+  if(del) return deleteBooking(del.dataset.del);
+  const run=e.target.closest("[data-run]");
+  if(!run || run.disabled) return;
+  const bk=readBookings().find(b=>b.id===run.dataset.run);
+  if(!bk) return;
+  pending=bk;
+  const when=bookingNow(bk);
   $("confirmText").textContent=
-    `${t?md(t):"다음 예약일"} ${$("timeFrom").value} — ${first.name} 부터 순서대로 실제 예약합니다.`;
+    `${md(when)} ${hm(when)} — ${roomText(bk)} 순서로 실제 예약합니다. 되돌릴 수 없습니다.`;
   $("confirmBox").hidden=false;
-};
-$("btn-yes").onclick=()=>{ $("confirmBox").hidden=true; dispatch("book",true); };
-$("btn-no").onclick=()=>{ $("confirmBox").hidden=true; show("m-run","취소했습니다. 예약되지 않았습니다.","wait"); };
+});
+let pending=null;
+$("btn-yes").onclick=()=>{ $("confirmBox").hidden=true; if(pending) dispatchBooking(pending); pending=null; };
+$("btn-no").onclick=()=>{ $("confirmBox").hidden=true; pending=null; show("m-run","취소했습니다. 예약되지 않았습니다.","wait"); };
 
 /* ── 최근 실행 ── */
 function kstText(iso){ const d=new Date(iso); const k=new Date(d.getTime()+(9*60+d.getTimezoneOffset())*60000);
@@ -997,12 +1128,14 @@ async function follow(beforeId){
         step("done", okRun?"done":"fail", nowHM());
         const text=await resultOf(r).catch(()=>null);
         show("m-run", text || "끝났습니다. 아래 결과를 보세요.", okRun?"ok":"err");
+        // 어느 건이 끝났는지 목록에 남깁니다. 완료된 건은 지울 수 있습니다.
+        if(runningBk){ const id=runningBk; runningBk=null; await markDone(id, okRun, text||""); }
         return;
       }
     }
     step("run","fail",nowHM());
     show("m-run","시간이 오래 걸립니다. 아래 예약 결과에서 확인해 주세요.","wait");
-  } finally { following=false; }
+  } finally { following=false; runningBk=null; }
 }
 
 async function loadRuns(){
@@ -1056,8 +1189,9 @@ $("btn-secret").onclick=async()=>{
 
 /* ── 토큰 ── */
 function applyToken(ok){
-  ["btn-save","btn-book"].forEach(id=>$(id).disabled=!ok);
+  $("btn-save").disabled=!ok;
   $("setup").hidden=ok; $("tokendet").hidden=!ok;
+  renderBookings();                 // 목록의 버튼도 함께 잠그거나 풉니다
 }
 async function connect(quiet){
   token=$("token").value.trim();
