@@ -130,6 +130,18 @@ export interface SiteAdapter {
 }
 
 /** config/*.job.json 의 형태. */
+/** 고를 수 있는 장소 하나. 어드민이 목록을 그릴 때 씁니다. */
+export interface PlaceRef {
+  /** 사이트의 location 코드. */
+  id: string;
+  /** 보여줄 이름. 예: "311호" */
+  name: string;
+  /** 묶음. 예: "본관 3층", "소그룹" */
+  group?: string;
+  /** 정원. 이름에서 읽어내며, 못 읽으면 없습니다. */
+  cap?: { min: number; max: number };
+}
+
 /** 어드민에 저장된 수동 예약 건 하나. */
 export interface ManualBooking {
   /** 건을 가리키는 값. 지우거나 갱신할 때 씁니다. */
@@ -175,6 +187,15 @@ export interface JobConfig {
    * 자동 실행(watch)은 이 목록을 보지 않습니다.
    */
   bookings?: ManualBooking[];
+  /**
+   * 예약할 수 있는 장소 사전. 어드민의 "장소 다시 불러오기" 가 사이트에서
+   * 읽어 채웁니다 (list-rooms).
+   *
+   * target.rooms 가 "어디부터 잡을까" 라면, 이쪽은 "고를 수 있는 게 무엇인가"
+   * 입니다. 교회가 방을 더하거나 이름을 바꿔도 코드를 손으로 찾지 않으려고
+   * 둡니다. 자동 실행은 이 목록을 보지 않습니다.
+   */
+  places?: PlaceRef[];
   watch?: {
     /** 폴링 간격(초). 최소 5초. */
     intervalSec?: number;

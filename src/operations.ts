@@ -215,6 +215,12 @@ export async function runBookFirst(job: JobConfig, dryRun: boolean): Promise<Boo
 }
 
 /**
+ * 장소 목록 결과에서 사람이 읽을 부분과 JSON 을 가르는 표시.
+ * 어드민이 이 뒤를 그대로 JSON.parse 합니다.
+ */
+export const ROOMS_MARK = '::장소::';
+
+/**
  * 예약할 수 있는 장소를 모두 찾아옵니다. 예약하지 않습니다.
  *
  * 호실은 URL 의 location 코드로 정해지는데, 그 코드를 사람이 사이트를 뒤져

@@ -9,7 +9,7 @@ import { loadAdapter } from './adapters/registry.js';
 import { log } from './logger.js';
 import { notify } from './notify/index.js';
 import { watch } from './watcher.js';
-import { isFailure, manualJob, reportResult, runListRooms, runBookFirst, runCheck, runProbe } from './operations.js';
+import { isFailure, manualJob, reportResult, runListRooms, runBookFirst, runCheck, runProbe, ROOMS_MARK } from './operations.js';
 import { startAdminServer } from './admin/server.js';
 import { Scheduler } from './runner.js';
 import { formatReport, inspectPage } from './inspect.js';
@@ -254,9 +254,11 @@ program
       return;
     }
     log.ok(`장소 ${rooms.length}곳`);
-    // 어드민에 그대로 붙여 넣을 수 있게 JSON 으로도 한 번 찍습니다.
     console.log(JSON.stringify(rooms, null, 2));
-    reportResult(`장소 ${rooms.length}곳 — ` + rooms.map((r) => `${r.id}:${r.label ?? ''}`).join(' / '));
+    // 어드민이 이 줄을 읽어 장소 목록을 채웁니다. 사람이 읽을 앞머리와
+    // 기계가 읽을 JSON 을 표시로 갈라 둡니다 — 이름에 무엇이 들어 있어도
+    // 쪼개지지 않습니다.
+    reportResult(`장소 ${rooms.length}곳 ${ROOMS_MARK} ${JSON.stringify(rooms)}`);
   });
 
 program
