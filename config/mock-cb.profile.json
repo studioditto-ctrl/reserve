@@ -24,7 +24,8 @@
     "checkboxTimes": {
       "selector": "input[name=\"reservation[time]\"]",
       "labelFrom": "label"
-    }
+    },
+    "roomListUrl": "http://localhost:8787/rooms"
   },
   "book": {
     "steps": [

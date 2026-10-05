@@ -9,7 +9,7 @@ import { loadAdapter } from './adapters/registry.js';
 import { log } from './logger.js';
 import { notify } from './notify/index.js';
 import { watch } from './watcher.js';
-import { isFailure, manualJob, reportResult, runBookFirst, runCheck, runProbe } from './operations.js';
+import { isFailure, manualJob, reportResult, runListRooms, runBookFirst, runCheck, runProbe, ROOMS_MARK } from './operations.js';
 import { startAdminServer } from './admin/server.js';
 import { Scheduler } from './runner.js';
 import { formatReport, inspectPage } from './inspect.js';
@@ -238,6 +238,27 @@ program
     }
     log.ok(`시간표가 뜨는 날짜 ${open.length}일`);
     for (const r of open) console.log(`  ${r.date}  선택 가능 ${r.openSlots}칸`);
+  });
+
+program
+  .command('list-rooms')
+  .description('예약할 수 있는 장소와 그 코드를 모두 찾아옵니다 (예약하지 않음).')
+  .argument('[job]', '작업 파일 경로', DEFAULT_JOB)
+  .action(async (jobPath: string) => {
+    const job = loadJob(jobPath, { allowNoDates: true });
+    const rooms = await runListRooms(job);
+    if (!rooms.length) {
+      const msg = '장소를 찾지 못했습니다. 목록 페이지 주소를 확인하세요.';
+      log.warn(msg);
+      reportResult(msg);
+      return;
+    }
+    log.ok(`장소 ${rooms.length}곳`);
+    console.log(JSON.stringify(rooms, null, 2));
+    // 어드민이 이 줄을 읽어 장소 목록을 채웁니다. 사람이 읽을 앞머리와
+    // 기계가 읽을 JSON 을 표시로 갈라 둡니다 — 이름에 무엇이 들어 있어도
+    // 쪼개지지 않습니다.
+    reportResult(`장소 ${rooms.length}곳 ${ROOMS_MARK} ${JSON.stringify(rooms)}`);
   });
 
 program

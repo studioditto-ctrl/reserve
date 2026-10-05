@@ -62,6 +62,11 @@ export interface SiteProfile {
      * 목록을 거쳐 들어오지 않으면 홈으로 돌려보내는 사이트가 있습니다.
      */
     referer?: string;
+    /**
+     * 예약할 수 있는 장소가 모두 걸려 있는 목록 페이지.
+     * 없으면 referer 를 씁니다. list-rooms 가 여기서 location 코드를 읽습니다.
+     */
+    roomListUrl?: string;
     /** 목록이 그려질 때까지 기다릴 셀렉터. */
     waitFor?: string;
     /**
@@ -572,6 +577,50 @@ export class ProfileAdapter implements SiteAdapter {
    * 날짜 하나를 열어 시간표가 뜨는지만 봅니다. 예약은 하지 않습니다.
    * 조건(시각·길이)과 무관하게 "이 날짜에 뭔가 고를 수 있는가" 만 판단합니다.
    */
+  /**
+   * 예약할 수 있는 장소를 목록 페이지에서 모두 긁어옵니다.
+   *
+   * 호실은 URL 의 location 코드 하나로 정해집니다. 그 코드를 사람이 눈으로
+   * 찾아 적는 대신, 목록에 걸린 링크에서 코드와 이름을 함께 읽습니다.
+   * 새 장소(소그룹실 등)를 더할 때 코드를 몰라도 되게 하는 것이 목적입니다.
+   *
+   * 예약하지 않습니다. 목록을 한 번 열어 읽을 뿐입니다.
+   */
+  async listRooms(page: Page): Promise<RoomRef[]> {
+    const { search } = this.profile;
+    const listUrl = search.roomListUrl ?? search.referer;
+    if (!listUrl) throw new Error('프로필에 장소 목록 주소(search.referer)가 없습니다.');
+
+    this.hookPopups(page);
+    await page.goto(listUrl, { waitUntil: 'domcontentloaded' });
+    await this.dismissPopups(page);
+    await page.waitForTimeout(1500);   // 목록이 스크립트로 그려지는 경우
+
+    // location=코드 가 붙은 링크를 모두 모읍니다. 같은 코드가 여러 번 나오면
+    // 더 긴 이름을 남깁니다 — 짧은 쪽은 보통 "예약" 같은 버튼 글자입니다.
+    const found = await page.evaluate(() => {
+      const out: { id: string; label: string }[] = [];
+      for (const a of Array.from(document.querySelectorAll('a[href*="location="]'))) {
+        const href = (a as HTMLAnchorElement).getAttribute('href') ?? '';
+        const id = /[?&]location=(\d+)/.exec(href)?.[1];
+        if (!id) continue;
+        const row = a.closest('li,tr,article,.item,.card') ?? a;
+        const label = (row.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+        out.push({ id, label: label || (a.textContent ?? '').trim() });
+      }
+      return out;
+    });
+
+    const best = new Map<string, string>();
+    for (const r of found) {
+      const prev = best.get(r.id);
+      if (prev === undefined || r.label.length > prev.length) best.set(r.id, r.label);
+    }
+    return [...best.entries()]
+      .map(([id, label]) => ({ id, label }))
+      .sort((a, b) => Number(a.id) - Number(b.id));
+  }
+
   async probe(page: Page, date: string, room?: RoomRef): Promise<ProbeResult> {
     const { search } = this.profile;
     this.hookPopups(page);
