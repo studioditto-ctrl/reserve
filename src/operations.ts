@@ -215,6 +215,28 @@ export async function runBookFirst(job: JobConfig, dryRun: boolean): Promise<Boo
 }
 
 /**
+ * 예약할 수 있는 장소를 모두 찾아옵니다. 예약하지 않습니다.
+ *
+ * 호실은 URL 의 location 코드로 정해지는데, 그 코드를 사람이 사이트를 뒤져
+ * 적어 넣는 대신 목록에서 직접 읽습니다.
+ */
+export async function runListRooms(job: JobConfig): Promise<RoomRef[]> {
+  const { adapter, session } = await open(job);
+  try {
+    if (!adapter.listRooms) throw new Error('이 어댑터는 장소 목록 읽기를 지원하지 않습니다.');
+    if (!(await adapter.isLoggedIn(session.page))) {
+      await adapter.login(session.page, requireCredentials(), { manual: false });
+      await session.save();
+    }
+    const rooms = await adapter.listRooms(session.page);
+    for (const r of rooms) log.info(`  location=${r.id}  ${r.label ?? ''}`);
+    return rooms;
+  } finally {
+    await session.close();
+  }
+}
+
+/**
  * 날짜를 하루씩 넘기며 시간표가 뜨는 날을 찾습니다. 예약은 하지 않습니다.
  * "어느 날짜가 예약 가능한가" 를 모를 때 쓰는 탐색 도구입니다.
  */

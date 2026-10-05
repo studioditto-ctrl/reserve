@@ -106,6 +106,25 @@ const server = createServer(async (req, res) => {
        <a href="/booking?date=2026-09-05&party=2">예약하기</a>`));
   }
 
+  // 장소 목록. 실제 사이트처럼 location 코드가 붙은 링크를 늘어놓습니다.
+  // list-rooms 가 여기서 코드와 이름을 읽어갑니다.
+  if (path === '/rooms') {
+    const places = [
+      { id: '29', name: '311호', group: '본관 3층', cap: '11~30인' },
+      { id: '28', name: '312호', group: '본관 3층', cap: '6~10인' },
+      { id: '27', name: '313호', group: '본관 3층', cap: '1~5인' },
+      { id: '41', name: '소그룹실 A', group: '소그룹', cap: '1~8인' },
+      { id: '42', name: '소그룹실 B', group: '소그룹', cap: '1~8인' },
+    ];
+    return send(res, 200, page('장소예약', `<ul id="place-list">${places
+      .map(
+        (p) =>
+          `<li><a href="/cbooking?location=${p.id}&reserve_date=2026-10-11">` +
+          `${p.group} ${p.name} (${p.cap})</a></li>`,
+      )
+      .join('')}</ul>`));
+  }
+
   if (path === '/booking') {
     const date = url.searchParams.get('date') ?? '';
     const party = url.searchParams.get('party') ?? '2';

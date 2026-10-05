@@ -122,6 +122,11 @@ export interface SiteAdapter {
    * "어느 날짜가 예약 가능한가" 를 알아낼 때 씁니다.
    */
   probe?(page: Page, date: string, room?: RoomRef): Promise<ProbeResult>;
+  /**
+   * 예약할 수 있는 장소를 모두 찾아 돌려줍니다 (예약하지 않음).
+   * 새 장소를 더할 때 location 코드를 손으로 찾지 않으려고 씁니다.
+   */
+  listRooms?(page: Page): Promise<RoomRef[]>;
 }
 
 /** config/*.job.json 의 형태. */

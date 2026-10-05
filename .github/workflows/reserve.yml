@@ -22,6 +22,7 @@ on:
         options:
           - check      # 빈자리 조회 (날짜를 넣으면 그 날짜를 시험)
           - probe      # 어느 날짜에 시간표가 뜨는지 훑어보기 (예약 안 함)
+          - rooms      # 예약할 수 있는 장소와 코드를 모두 찾기 (예약 안 함)
           - dryrun     # 신청 직전까지 예행연습
           - book       # 지정한 날짜를 지금 예약
           - watch      # 오픈까지 기다렸다 예약 (자동과 동일)
@@ -145,6 +146,9 @@ jobs:
               else
                 npx tsx src/cli.ts check "$JOB"
               fi
+              ;;
+            rooms)
+              npx tsx src/cli.ts list-rooms "$JOB"
               ;;
             probe)
               ARGS="--days ${{ inputs.days || '14' }}"
