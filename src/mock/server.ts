@@ -109,14 +109,20 @@ const server = createServer(async (req, res) => {
   // 장소 목록. 실제 사이트처럼 location 코드가 붙은 링크를 늘어놓습니다.
   // list-rooms 가 여기서 코드와 이름을 읽어갑니다.
   if (path === '/rooms') {
-    const places = [
+    // 달력 이동 링크. 실제 만나교회 목록에 이것이 있어 "이전달" 을 장소로
+    // 집어 들고 예약까지 갔습니다. 걸러지는지 여기서 확인합니다.
+    const nav = `<a href="/rooms?location=0&ym=2026-09">이전달</a>` +
+                `<a href="/rooms?location=0&ym=2026-11">다음달</a>`;
+    // ?nav=1 이면 달력 링크만 있는 페이지 — 실제 만나교회가 그랬습니다.
+    const navOnly = url.searchParams.get('nav') === '1';
+    const places = navOnly ? [] : [
       { id: '29', name: '311호', group: '본관 3층', cap: '11~30인' },
       { id: '28', name: '312호', group: '본관 3층', cap: '6~10인' },
       { id: '27', name: '313호', group: '본관 3층', cap: '1~5인' },
       { id: '41', name: '소그룹실 A', group: '소그룹', cap: '1~8인' },
       { id: '42', name: '소그룹실 B', group: '소그룹', cap: '1~8인' },
     ];
-    return send(res, 200, page('장소예약', `<ul id="place-list">${places
+    return send(res, 200, page('장소예약', `<nav>${nav}</nav><ul id="place-list">${places
       .map(
         (p) =>
           `<li><a href="/cbooking?location=${p.id}&reserve_date=2026-10-11">` +

@@ -246,11 +246,17 @@ program
   .argument('[job]', '작업 파일 경로', DEFAULT_JOB)
   .action(async (jobPath: string) => {
     const job = loadJob(jobPath, { allowNoDates: true });
-    const rooms = await runListRooms(job);
-    if (!rooms.length) {
-      const msg = '장소를 찾지 못했습니다. 목록 페이지 주소를 확인하세요.';
+    const { rooms, notes } = await runListRooms(job);
+
+    // 하나밖에 못 찾았다면 찾은 것이 아닙니다. 달력의 "이전달" 링크 하나를
+    // 장소로 넘겨 실제 예약까지 간 적이 있어, 적은 수는 실패로 봅니다.
+    if (rooms.length < 2) {
+      const msg =
+        `장소를 찾지 못했습니다 (${rooms.length}곳). 목록 페이지의 생김새가 다릅니다.` +
+        (notes.length ? ` — ${notes.join(' | ')}` : '');
       log.warn(msg);
       reportResult(msg);
+      process.exitCode = 1;
       return;
     }
     log.ok(`장소 ${rooms.length}곳`);

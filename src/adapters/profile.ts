@@ -7,7 +7,7 @@ import { log } from '../logger.js';
 import { snapshot } from '../browser.js';
 import { minutesToHHMM, parseTimeLabels } from '../timelabel.js';
 import type {
-  BookOptions, BookingResult, Credentials, JobTarget, ProbeResult, RoomRef, SiteAdapter, Slot,
+  BookOptions, BookingResult, Credentials, JobTarget, ProbeResult, RoomListing, RoomRef, SiteAdapter, Slot,
 } from '../types.js';
 
 /** 예약 흐름의 한 단계. 사이트마다 다른 클릭 순서를 JSON 으로 기술합니다. */
@@ -586,7 +586,7 @@ export class ProfileAdapter implements SiteAdapter {
    *
    * 예약하지 않습니다. 목록을 한 번 열어 읽을 뿐입니다.
    */
-  async listRooms(page: Page): Promise<RoomRef[]> {
+  async listRooms(page: Page): Promise<RoomListing> {
     const { search } = this.profile;
     const listUrl = search.roomListUrl ?? search.referer;
     if (!listUrl) throw new Error('프로필에 장소 목록 주소(search.referer)가 없습니다.');
@@ -596,29 +596,71 @@ export class ProfileAdapter implements SiteAdapter {
     await this.dismissPopups(page);
     await page.waitForTimeout(1500);   // 목록이 스크립트로 그려지는 경우
 
-    // location=코드 가 붙은 링크를 모두 모읍니다. 같은 코드가 여러 번 나오면
-    // 더 긴 이름을 남깁니다 — 짧은 쪽은 보통 "예약" 같은 버튼 글자입니다.
-    const found = await page.evaluate(() => {
-      const out: { id: string; label: string }[] = [];
+    // 장소가 어디에 적혀 있는지는 사이트마다 다릅니다. 링크·드롭다운·data 속성을
+    // 모두 훑고, 무엇을 봤는지도 함께 들고 나옵니다. 못 찾았을 때 "무엇이 있었나"
+    // 를 알아야 다음에 고칠 수 있습니다.
+    const seen = await page.evaluate(() => {
+      const links: { id: string; label: string; text: string }[] = [];
       for (const a of Array.from(document.querySelectorAll('a[href*="location="]'))) {
         const href = (a as HTMLAnchorElement).getAttribute('href') ?? '';
-        const id = /[?&]location=(\d+)/.exec(href)?.[1];
+        const id = /[?&]location=([^&#]+)/.exec(href)?.[1];
         if (!id) continue;
         const row = a.closest('li,tr,article,.item,.card') ?? a;
-        const label = (row.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
-        out.push({ id, label: label || (a.textContent ?? '').trim() });
+        // page.evaluate 안에서는 이름 붙은 함수를 만들지 않습니다. tsx 가
+        // __name 보조 함수를 끼워 넣는데 브라우저 쪽에는 그것이 없습니다.
+        const rowText = (row.textContent ?? '').replace(/\s+/g, ' ').trim();
+        const ownText = (a.textContent ?? '').replace(/\s+/g, ' ').trim();
+        links.push({ id, label: rowText.slice(0, 80), text: ownText.slice(0, 40) });
       }
-      return out;
+      const options: { id: string; label: string; from: string }[] = [];
+      for (const sel of Array.from(document.querySelectorAll('select'))) {
+        const from = (sel as HTMLSelectElement).name || (sel as HTMLSelectElement).id || 'select';
+        for (const o of Array.from(sel.querySelectorAll('option'))) {
+          const id = (o as HTMLOptionElement).value;
+          const label = (o.textContent ?? '').replace(/\s+/g, ' ').trim();
+          if (id && label) options.push({ id, label, from });
+        }
+      }
+      return { links, options, title: document.title, url: location.href };
     });
 
+    // 달력의 이전달·다음달 같은 이동 링크가 location 을 달고 다닙니다.
+    // 이것을 장소로 받아들이면 "이전달" 을 예약하러 갑니다 — 실제로 그랬습니다.
+    const NAV = /^(이전|다음|지난|이번)\s*(달|주|월)?$|^(prev|next|today|오늘)$/i;
+    const isPlace = (c: { id: string; label: string }) =>
+      /^\d+$/.test(c.id) && c.id !== '0' && c.label.length > 0 && !NAV.test(c.label);
+
     const best = new Map<string, string>();
-    for (const r of found) {
-      const prev = best.get(r.id);
-      if (prev === undefined || r.label.length > prev.length) best.set(r.id, r.label);
+    for (const c of [...seen.links, ...seen.options]) {
+      if (!isPlace(c)) continue;
+      const prev = best.get(c.id);
+      // 같은 코드가 여러 번 나오면 더 긴 이름을 남깁니다 — 짧은 쪽은 보통
+      // "예약" 같은 버튼 글자입니다.
+      if (prev === undefined || c.label.length > prev.length) best.set(c.id, c.label);
     }
-    return [...best.entries()]
+    const rooms = [...best.entries()]
       .map(([id, label]) => ({ id, label }))
       .sort((a, b) => Number(a.id) - Number(b.id));
+
+    // 못 찾았으면 본 것을 적어 돌려줍니다. 이것 하나로 다음에 고칠 수 있습니다.
+    const notes: string[] = [];
+    if (rooms.length < 2) {
+      notes.push(`페이지: ${seen.title} (${seen.url})`);
+      notes.push(
+        seen.links.length
+          ? `location 링크 ${seen.links.length}개: ` +
+            seen.links.slice(0, 12).map((l) => `${l.id}="${l.text}"`).join(', ')
+          : 'location 이 붙은 링크가 없습니다.',
+      );
+      const sels = [...new Set(seen.options.map((o) => o.from))];
+      notes.push(
+        sels.length
+          ? `드롭다운 ${sels.join(', ')} — ` +
+            seen.options.slice(0, 12).map((o) => `${o.id}="${o.label}"`).join(', ')
+          : '드롭다운이 없습니다.',
+      );
+    }
+    return { rooms, notes };
   }
 
   async probe(page: Page, date: string, room?: RoomRef): Promise<ProbeResult> {
