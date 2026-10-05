@@ -5,7 +5,7 @@ import { env, requireCredentials } from './config.js';
 import { log } from './logger.js';
 import { openedDates, toDateString, upcomingDates } from './schedule.js';
 import { watch, type WatchResult } from './watcher.js';
-import type { BookingResult, JobConfig, ProbeResult, RoomRef, SiteAdapter, Slot } from './types.js';
+import type { BookingResult, JobConfig, ProbeResult, RoomListing, RoomRef, SiteAdapter, Slot } from './types.js';
 
 /**
  * 어드민 페이지와 스케줄러가 함께 쓰는 동작들.
@@ -226,7 +226,7 @@ export const ROOMS_MARK = '::장소::';
  * 호실은 URL 의 location 코드로 정해지는데, 그 코드를 사람이 사이트를 뒤져
  * 적어 넣는 대신 목록에서 직접 읽습니다.
  */
-export async function runListRooms(job: JobConfig): Promise<RoomRef[]> {
+export async function runListRooms(job: JobConfig): Promise<RoomListing> {
   const { adapter, session } = await open(job);
   try {
     if (!adapter.listRooms) throw new Error('이 어댑터는 장소 목록 읽기를 지원하지 않습니다.');
@@ -234,9 +234,10 @@ export async function runListRooms(job: JobConfig): Promise<RoomRef[]> {
       await adapter.login(session.page, requireCredentials(), { manual: false });
       await session.save();
     }
-    const rooms = await adapter.listRooms(session.page);
-    for (const r of rooms) log.info(`  location=${r.id}  ${r.label ?? ''}`);
-    return rooms;
+    const found = await adapter.listRooms(session.page);
+    for (const r of found.rooms) log.info(`  location=${r.id}  ${r.label ?? ''}`);
+    for (const n of found.notes) log.warn(`  ${n}`);
+    return found;
   } finally {
     await session.close();
   }

@@ -969,9 +969,19 @@ async function loadConfig(){
  * cfg 를 직접 고친 뒤 부르세요 — 화면의 값이 아니라 지금 cfg 가 그대로 올라갑니다.
  */
 async function saveConfig(message){
-  const r=await gh(`/contents/${CONFIG_PATH}`,{ method:"PUT", body:JSON.stringify({
+  const put=()=>gh(`/contents/${CONFIG_PATH}`,{ method:"PUT", body:JSON.stringify({
     message, content:b64(JSON.stringify(cfg,null,2)+"\n"), sha:cfgSha, branch:BRANCH })});
-  cfgSha=r.content.sha;
+  try{
+    cfgSha=(await put()).content.sha;
+  }catch(e){
+    // 409 — 다른 곳에서 설정이 바뀌어 손에 든 sha 가 낡았습니다.
+    // (예약 결과 기록처럼 이 페이지가 스스로 저장하는 경우에도 생깁니다)
+    // 최신 sha 를 다시 받아 한 번 더 시도합니다.
+    if(e.status!==409) throw e;
+    const f=await gh(`/contents/${CONFIG_PATH}?ref=${BRANCH}`);
+    cfgSha=f.sha;
+    cfgSha=(await put()).content.sha;
+  }
 }
 
 /**
@@ -1042,6 +1052,7 @@ async function reloadPlaces(){
   if(!cfg) return show("m-places","설정을 아직 읽지 못했습니다.","err");
   if(!token) return show("m-places","먼저 GitHub 에 연결하세요.","err");
   const btn=$("btn-places"); btn.disabled=true;
+  const keep=cfg.places;            // 잘못 읽어 왔을 때 되돌릴 자리
   show("m-places","사이트에서 장소를 찾는 중입니다… (1~2분)","wait");
   try{
     const before=await latestRunId();
@@ -1053,14 +1064,25 @@ async function reloadPlaces(){
     const cut=text.indexOf(ROOMS_MARK);
     if(cut<0) throw new Error(text);           // 사이트가 돌려준 말을 그대로 보여 줍니다
     const found=JSON.parse(text.slice(cut+ROOMS_MARK.length));
-    if(!Array.isArray(found) || !found.length) throw new Error("장소를 하나도 찾지 못했습니다.");
+    // 한두 곳만 돌아오면 찾은 것이 아닙니다. 달력의 "이전달" 링크 하나를
+    // 장소로 받아 실제 예약까지 간 적이 있어, 적은 수는 받지 않습니다.
+    if(!Array.isArray(found) || found.length<2)
+      throw new Error(`장소를 제대로 찾지 못했습니다 (${(found||[]).length}곳). 목록은 그대로 둡니다.`);
 
     cfg.places=found.map(r=>{
       const label=String(r.label||"").trim();
       return { id:String(r.id), ...splitPlace(label), ...(capOf(label)?{cap:capOf(label)}:{}) };
     });
+    const wasCount=rooms.length;
     rooms=buildRooms();
-    // 고른 방이 새 목록에 없으면 버립니다. 없는 코드를 예약하러 갈 수는 없습니다.
+    const gone=picks.filter(id=>!rooms.some(r=>r.id===id)).length;
+    // 고르던 방이 새 목록에서 사라진다면 한 번 묻습니다. 잘못 읽어 온 목록으로
+    // 순위가 통째로 날아가는 일을 막습니다.
+    if(gone && !confirm(`새 목록에는 지금 고른 방 ${gone}곳이 없습니다.\n`
+        +`장소 ${wasCount}곳 → ${rooms.length}곳으로 바꿀까요?`)){
+      cfg.places=keep; rooms=buildRooms(); renderRooms();
+      return show("m-places","그대로 두었습니다.","wait");
+    }
     picks=picks.filter(id=>rooms.some(r=>r.id===id));
     renderRooms(); refresh();
     await saveConfig(`장소 목록 갱신 — ${cfg.places.length}곳`);

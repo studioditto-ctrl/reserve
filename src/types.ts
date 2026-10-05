@@ -126,10 +126,22 @@ export interface SiteAdapter {
    * 예약할 수 있는 장소를 모두 찾아 돌려줍니다 (예약하지 않음).
    * 새 장소를 더할 때 location 코드를 손으로 찾지 않으려고 씁니다.
    */
-  listRooms?(page: Page): Promise<RoomRef[]>;
+  listRooms?(page: Page): Promise<RoomListing>;
 }
 
 /** config/*.job.json 의 형태. */
+/**
+ * 장소 찾기 결과.
+ *
+ * 못 찾았을 때 빈 배열만 돌려주면 "왜" 를 알 수 없어, 페이지에서 본 것을
+ * notes 에 적어 함께 돌려줍니다. 사이트를 직접 열어볼 수 없을 때 이것이
+ * 유일한 단서입니다.
+ */
+export interface RoomListing {
+  rooms: RoomRef[];
+  notes: string[];
+}
+
 /** 고를 수 있는 장소 하나. 어드민이 목록을 그릴 때 씁니다. */
 export interface PlaceRef {
   /** 사이트의 location 코드. */
