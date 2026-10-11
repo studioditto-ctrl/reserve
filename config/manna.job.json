@@ -47,7 +47,7 @@
     "//stopAfterBooking": "한 곳만 잡으면 되므로 예약 성공 즉시 종료합니다.",
     "stopAfterBooking": true,
     "//leadDays": "오픈 시각에 열리는 것은 8일 뒤 날짜입니다. 토요일 밤 9시 → 다음주 일요일.",
-    "leadDays": 8,
+    "leadDays": 7,
     "//maxDates": "그 중 한 날짜만 봅니다. leadDays 덕분에 '막 열린 날' 이 첫 번째로 옵니다.",
     "maxDates": 1,
     "intervalSec": 30,
@@ -55,5 +55,13 @@
     "//maxWaitMin": "GitHub Actions 는 매주 토요일에 깨어납니다. 오픈 주차(첫째·셋째)가 아니면 다음 오픈이 한참 뒤라 이 한도를 넘어 곧바로 끝냅니다.",
     "maxWaitMin": 90
   },
-  "bookings": []
+  "bookings": [],
+  "schedule": {
+    "monthsAhead": 2,
+    "weekday": "일",
+    "weeksOfMonth": [
+      2,
+      4
+    ]
+  }
 }
